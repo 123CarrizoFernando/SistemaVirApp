@@ -11,6 +11,46 @@ import 'package:printing/printing.dart';
 
 const String baseUrl = 'https://api-sistema-vir.onrender.com/api';
 
+// LISTA OFICIAL DE LAS 29 SEDES DEL SISTEMA VIRTUAL N° 9002 (SEGÚN EL MAPA)
+const List<String> SEDES_OFICIALES = [
+  'Aguaray',
+  'Aguas Blancas',
+  'Angastaco',
+  'Animaná',
+  'Apolinario Saravia',
+  'Cachi / Payogasta',
+  'Campo Quijano',
+  'Campo Santo',
+  'Capital',
+  'Chicoana',
+  'El Carril',
+  'El Galpón',
+  'Embarcación',
+  'Gral. Güemes',
+  'Gral. Mosconi',
+  'Gral. Pizarro',
+  'Guachipas',
+  'Ing. Mauri / Gob. Solá / Alfarcito',
+  'Iruya',
+  'J. V. González',
+  'La Unión',
+  'Los Toldos',
+  'Luracatao',
+  'Metán',
+  'Moldes',
+  'Olacapato',
+  'Orán',
+  'Pichanal',
+  'Poscaya / Nazareno',
+  'Rivadavia Banda Sur',
+  'Rosario de la Frontera',
+  'Rosario de Lerma',
+  'Salvador Mazza',
+  'San Antonio de los Cobres',
+  'San Carlos',
+  'Tartagal',
+];
+
 void main() {
   runApp(const SistemaAcademicoApp());
 }
@@ -21,22 +61,189 @@ class SistemaAcademicoApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Sistema de Gestión Académica',
+      title: 'Sistema Virtual N° 9002 - Gestión Académica',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1F4E78)),
         useMaterial3: true,
       ),
-      home: const PantallaPrincipal(),
+      home: const PantallaLogin(),
       debugShowCheckedModeBanner: false,
     );
   }
 }
 
 // ============================================================================
-// ESTRUCTURA PRINCIPAL: SELECTOR GLOBAL DE AÑO, PERÍODO, MÓDULO Y ORIENTACIÓN
+// PANTALLA DE INICIO DE SESIÓN (CONTROL DE ACCESO PARA INQUILINOS / SEDES)
+// ============================================================================
+class PantallaLogin extends StatefulWidget {
+  const PantallaLogin({super.key});
+
+  @override
+  State<PantallaLogin> createState() => _PantallaLoginState();
+}
+
+class _PantallaLoginState extends State<PantallaLogin> {
+  final TextEditingController _userCtrl = TextEditingController();
+  final TextEditingController _passCtrl = TextEditingController();
+  bool _cargando = false;
+  bool _ocultarPass = true;
+
+  Future<void> _iniciarSesion() async {
+    if (_userCtrl.text.trim().isEmpty || _passCtrl.text.trim().isEmpty) return;
+    setState(() => _cargando = true);
+
+    try {
+      final res = await http.post(
+        Uri.parse('$baseUrl/login'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'username': _userCtrl.text.trim(),
+          'password': _passCtrl.text.trim(),
+        }),
+      );
+
+      setState(() => _cargando = false);
+
+      if (res.statusCode == 200) {
+        final usuario = json.decode(res.body);
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => PantallaPrincipal(usuarioActual: usuario),
+            ),
+          );
+        }
+      } else {
+        final err = json.decode(res.body)['error'] ?? 'Error al ingresar';
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(err), backgroundColor: Colors.red),
+          );
+        }
+      }
+    } catch (e) {
+      setState(() => _cargando = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Conectando con el servidor... Intentá en unos segundos ($e)',
+            ),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF153654),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24.0),
+          child: Card(
+            elevation: 8,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Container(
+              constraints: const BoxConstraints(maxWidth: 400),
+              padding: const EdgeInsets.all(32.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const CircleAvatar(
+                    radius: 36,
+                    backgroundColor: Color(0xFF1F4E78),
+                    child: Icon(Icons.school, size: 40, color: Colors.white),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Sistema Virtual N° 9002',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1F4E78),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const Text(
+                    'Plataforma de Seguimiento por Sedes',
+                    style: TextStyle(fontSize: 13, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 28),
+                  TextField(
+                    controller: _userCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Usuario',
+                      prefixIcon: Icon(Icons.person_outline),
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: _passCtrl,
+                    obscureText: _ocultarPass,
+                    onSubmitted: (_) => _iniciarSesion(),
+                    decoration: InputDecoration(
+                      labelText: 'Contraseña',
+                      prefixIcon: const Icon(Icons.lock_outline),
+                      border: const OutlineInputBorder(),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _ocultarPass
+                              ? Icons.visibility_off
+                              : Icons.visibility,
+                        ),
+                        onPressed: () =>
+                            setState(() => _ocultarPass = !_ocultarPass),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF1F4E78),
+                        foregroundColor: Colors.white,
+                      ),
+                      onPressed: _cargando ? null : _iniciarSesion,
+                      icon: _cargando
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Icon(Icons.login),
+                      label: Text(
+                        _cargando ? 'Verificando...' : 'Ingresar al Sistema',
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================================
+// ESTRUCTURA PRINCIPAL: BLOQUEA SEDE Y MÓDULOS SEGÚN EL PERFIL DEL USUARIO
 // ============================================================================
 class PantallaPrincipal extends StatefulWidget {
-  const PantallaPrincipal({super.key});
+  final Map<String, dynamic> usuarioActual;
+  const PantallaPrincipal({super.key, required this.usuarioActual});
 
   @override
   State<PantallaPrincipal> createState() => _PantallaPrincipalState();
@@ -45,29 +252,58 @@ class PantallaPrincipal extends StatefulWidget {
 class _PantallaPrincipalState extends State<PantallaPrincipal> {
   int _indiceSeleccionado = 0;
 
+  late bool _esSuperAdmin;
+  late String _sedeActual;
+  late List<int> _modulosDisponibles;
+  late int _moduloActual;
+
   int _anioActual = 2026;
   String _periodoActual = '2° Período';
-  int _moduloActual = 6;
   String _orientacionActual = 'Turismo';
 
   final List<int> _aniosDisponibles = [2025, 2026, 2027, 2028];
   final List<String> _periodosDisponibles = ['1° Período', '2° Período'];
-  final List<int> _modulosDisponibles = [1, 2, 3, 4, 5, 6];
   final List<String> _orientacionesDisponibles = [
     'Turismo',
     'Economía y Administración',
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _esSuperAdmin =
+        (widget.usuarioActual['rol'] == 'admin' ||
+        widget.usuarioActual['sede'] == 'TODAS');
+
+    // Si es SuperAdmin empieza viendo Tartagal pero puede cambiar a cualquiera de las 29 sedes
+    _sedeActual = _esSuperAdmin
+        ? 'Tartagal'
+        : widget.usuarioActual['sede'].toString();
+
+    // Filtramos únicamente los módulos que este usuario tiene permitidos por contrato
+    String modsStr =
+        widget.usuarioActual['modulos_permitidos']?.toString() ?? '1,2,3,4,5,6';
+    _modulosDisponibles = modsStr
+        .split(',')
+        .map((s) => int.tryParse(s.trim()))
+        .whereType<int>()
+        .toList();
+    if (_modulosDisponibles.isEmpty) _modulosDisponibles = [6];
+    _modulosDisponibles.sort();
+    _moduloActual = _modulosDisponibles.first;
+  }
+
+  @override
   Widget build(BuildContext context) {
-    bool esCelular = MediaQuery.of(context).size.width < 750;
+    bool esCelular = MediaQuery.of(context).size.width < 800;
     final Key filtroKey = ValueKey(
-      '$_anioActual-$_periodoActual-$_moduloActual-$_orientacionActual',
+      '$_sedeActual-$_anioActual-$_periodoActual-$_moduloActual-$_orientacionActual',
     );
 
     final List<Widget> pantallas = [
       PantallaAlumnos(
         key: filtroKey,
+        sede: _sedeActual,
         anio: _anioActual,
         periodo: _periodoActual,
         modulo: _moduloActual,
@@ -75,6 +311,7 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
       ),
       PantallaGrupos(
         key: filtroKey,
+        sede: _sedeActual,
         anio: _anioActual,
         periodo: _periodoActual,
         modulo: _moduloActual,
@@ -82,6 +319,7 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
       ),
       PantallaSeguimiento(
         key: filtroKey,
+        sede: _sedeActual,
         anio: _anioActual,
         periodo: _periodoActual,
         modulo: _moduloActual,
@@ -92,17 +330,62 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
         modulo: _moduloActual,
         orientacion: _orientacionActual,
       ),
+      if (_esSuperAdmin) const PantallaUsuariosSedes(),
     ];
 
     return Scaffold(
       appBar: AppBar(
         backgroundColor: const Color(0xFF1F4E78),
         foregroundColor: Colors.white,
-        title: const Text(
-          'Gestión Académica',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              _esSuperAdmin
+                  ? 'Admin General (${widget.usuarioActual['nombre_completo']})'
+                  : 'Sede: $_sedeActual',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+            ),
+            Text(
+              'Facilitador: ${widget.usuarioActual['nombre_completo']}',
+              style: const TextStyle(fontSize: 11, color: Colors.white70),
+            ),
+          ],
         ),
         actions: [
+          // Si es SuperAdmin puede elegir qué Sede ver; si es un facilitador alquilado, su sede está bloqueada
+          if (_esSuperAdmin)
+            _chipDropdown<String>(
+              value: _sedeActual,
+              items: SEDES_OFICIALES
+                  .map((s) => DropdownMenuItem(value: s, child: Text('📍 $s')))
+                  .toList(),
+              onChanged: (v) => setState(() => _sedeActual = v!),
+            )
+          else
+            Container(
+              margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.amber.shade800,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.location_on, size: 14, color: Colors.white),
+                  const SizedBox(width: 4),
+                  Text(
+                    _sedeActual,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+          // Selector de Año
           _chipDropdown<int>(
             value: _anioActual,
             items: _aniosDisponibles
@@ -110,6 +393,7 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
                 .toList(),
             onChanged: (v) => setState(() => _anioActual = v!),
           ),
+          // Selector de Período
           _chipDropdown<String>(
             value: _periodoActual,
             items: _periodosDisponibles
@@ -122,6 +406,7 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
                 .toList(),
             onChanged: (v) => setState(() => _periodoActual = v!),
           ),
+          // Selector de Módulo (SOLO MUESTRA LOS MÓDULOS ASIGNADOS A ESTE USUARIO)
           _chipDropdown<int>(
             value: _moduloActual,
             items: _modulosDisponibles
@@ -129,6 +414,7 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
                 .toList(),
             onChanged: (v) => setState(() => _moduloActual = v!),
           ),
+          // Selector de Orientación
           _chipDropdown<String>(
             value: _orientacionActual,
             items: _orientacionesDisponibles
@@ -143,7 +429,16 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
                 .toList(),
             onChanged: (v) => setState(() => _orientacionActual = v!),
           ),
-          const SizedBox(width: 6),
+          IconButton(
+            tooltip: 'Cerrar Sesión',
+            icon: const Icon(Icons.logout, color: Colors.amberAccent),
+            onPressed: () {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const PantallaLogin()),
+              );
+            },
+          ),
         ],
       ),
       body: Row(
@@ -162,27 +457,33 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
               ),
-              destinations: const [
-                NavigationRailDestination(
+              destinations: [
+                const NavigationRailDestination(
                   icon: Icon(Icons.people_alt_outlined),
                   selectedIcon: Icon(Icons.people),
                   label: Text('Alumnos'),
                 ),
-                NavigationRailDestination(
+                const NavigationRailDestination(
                   icon: Icon(Icons.group_work_outlined),
                   selectedIcon: Icon(Icons.group_work),
                   label: Text('Grupos y Proyectos'),
                 ),
-                NavigationRailDestination(
+                const NavigationRailDestination(
                   icon: Icon(Icons.analytics_outlined),
                   selectedIcon: Icon(Icons.analytics),
                   label: Text('Seguimiento y Bot'),
                 ),
-                NavigationRailDestination(
+                const NavigationRailDestination(
                   icon: Icon(Icons.link),
                   selectedIcon: Icon(Icons.link),
                   label: Text('Enlaces Moodle'),
                 ),
+                if (_esSuperAdmin)
+                  const NavigationRailDestination(
+                    icon: Icon(Icons.manage_accounts_outlined),
+                    selectedIcon: Icon(Icons.manage_accounts),
+                    label: Text('Usuarios / Sedes'),
+                  ),
               ],
             ),
           Expanded(
@@ -201,23 +502,28 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
               backgroundColor: const Color(0xFF1F4E78),
               selectedItemColor: Colors.white,
               unselectedItemColor: Colors.white60,
-              items: const [
-                BottomNavigationBarItem(
+              items: [
+                const BottomNavigationBarItem(
                   icon: Icon(Icons.people),
                   label: 'Alumnos',
                 ),
-                BottomNavigationBarItem(
+                const BottomNavigationBarItem(
                   icon: Icon(Icons.group_work),
                   label: 'Grupos',
                 ),
-                BottomNavigationBarItem(
+                const BottomNavigationBarItem(
                   icon: Icon(Icons.smart_toy),
                   label: 'Bot / Seg.',
                 ),
-                BottomNavigationBarItem(
+                const BottomNavigationBarItem(
                   icon: Icon(Icons.link),
                   label: 'Enlaces',
                 ),
+                if (_esSuperAdmin)
+                  const BottomNavigationBarItem(
+                    icon: Icon(Icons.manage_accounts),
+                    label: 'Usuarios',
+                  ),
               ],
             )
           : null,
@@ -230,7 +536,7 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
     required ValueChanged<T?> onChanged,
   }) {
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 3),
+      margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 2),
       padding: const EdgeInsets.symmetric(horizontal: 6),
       decoration: BoxDecoration(
         color: Colors.white12,
@@ -243,12 +549,12 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
           style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
-            fontSize: 13,
+            fontSize: 12,
           ),
           icon: const Icon(
             Icons.arrow_drop_down,
             color: Colors.white,
-            size: 18,
+            size: 16,
           ),
           items: items,
           onChanged: onChanged,
@@ -259,15 +565,362 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
 }
 
 // ============================================================================
-// PANTALLA 1: ALUMNOS, TARJETA ACADÉMICA, REPORTES PDF Y PASE DE PERÍODO
+// PANTALLA 5 (SOLO ADMIN): GESTIÓN DE USUARIOS, SEDES Y MÓDULOS ALQUILADOS
+// ============================================================================
+class PantallaUsuariosSedes extends StatefulWidget {
+  const PantallaUsuariosSedes({super.key});
+
+  @override
+  State<PantallaUsuariosSedes> createState() => _PantallaUsuariosSedesState();
+}
+
+class _PantallaUsuariosSedesState extends State<PantallaUsuariosSedes> {
+  List<dynamic> usuarios = [];
+  bool cargando = true;
+
+  @override
+  void initState() {
+    super.initState();
+    cargarUsuarios();
+  }
+
+  Future<void> cargarUsuarios() async {
+    setState(() => cargando = true);
+    try {
+      final res = await http.get(Uri.parse('$baseUrl/usuarios'));
+      if (res.statusCode == 200) {
+        setState(() {
+          usuarios = json.decode(res.body);
+          cargando = false;
+        });
+      }
+    } catch (e) {
+      setState(() => cargando = false);
+    }
+  }
+
+  void _abrirFormularioUsuario({dynamic usuarioExistente}) {
+    TextEditingController userCtrl = TextEditingController(
+      text: usuarioExistente?['username'] ?? '',
+    );
+    TextEditingController passCtrl = TextEditingController(
+      text: usuarioExistente?['password'] ?? '',
+    );
+    TextEditingController nombreCtrl = TextEditingController(
+      text: usuarioExistente?['nombre_completo'] ?? '',
+    );
+
+    String rol = usuarioExistente?['rol'] ?? 'facilitador';
+    String sede =
+        (usuarioExistente != null &&
+            SEDES_OFICIALES.contains(usuarioExistente['sede']))
+        ? usuarioExistente['sede']
+        : 'Tartagal';
+    bool activo = usuarioExistente?['activo'] ?? true;
+
+    String modsIniciales =
+        usuarioExistente?['modulos_permitidos']?.toString() ?? '6';
+    List<String> modulosElegidos = modsIniciales
+        .split(',')
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setStateModal) => AlertDialog(
+          title: Text(
+            usuarioExistente == null
+                ? 'Crear Cuenta para Facilitador'
+                : 'Editar Facilitador',
+          ),
+          content: Container(
+            constraints: const BoxConstraints(maxWidth: 500),
+            width: double.maxFinite,
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    controller: nombreCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Nombre y Apellido del Facilitador *',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: userCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Usuario de Login *',
+                            border: OutlineInputBorder(),
+                            isDense: true,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: TextField(
+                          controller: passCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Contraseña *',
+                            border: OutlineInputBorder(),
+                            isDense: true,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    value: rol,
+                    decoration: const InputDecoration(
+                      labelText: 'Tipo de Cuenta',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'facilitador',
+                        child: Text(
+                          'Facilitador de Sede (Solo ve su ciudad y módulos)',
+                        ),
+                      ),
+                      DropdownMenuItem(
+                        value: 'admin',
+                        child: Text('Super Administrador (Ve todas las sedes)'),
+                      ),
+                    ],
+                    onChanged: (v) => setStateModal(() => rol = v!),
+                  ),
+                  const SizedBox(height: 12),
+                  if (rol != 'admin') ...[
+                    DropdownButtonFormField<String>(
+                      value: sede,
+                      decoration: const InputDecoration(
+                        labelText: 'Localidad / Sede Asignada',
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                      ),
+                      items: SEDES_OFICIALES
+                          .map(
+                            (s) => DropdownMenuItem(value: s, child: Text(s)),
+                          )
+                          .toList(),
+                      onChanged: (v) => setStateModal(() => sede = v!),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Módulos Habilitados (Solo podrá ver los que marques):',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      children: ['1', '2', '3', '4', '5', '6'].map((m) {
+                        bool marcado = modulosElegidos.contains(m);
+                        return FilterChip(
+                          label: Text('Módulo $m'),
+                          selected: marcado,
+                          selectedColor: Colors.blue.shade200,
+                          onSelected: (val) {
+                            setStateModal(() {
+                              if (val) {
+                                modulosElegidos.add(m);
+                                modulosElegidos.sort();
+                              } else if (modulosElegidos.length > 1) {
+                                modulosElegidos.remove(m);
+                              }
+                            });
+                          },
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                  const Divider(height: 24),
+                  SwitchListTile(
+                    title: Text(
+                      activo
+                          ? 'Cuenta Activa (Alquiler al día)'
+                          : 'Cuenta Suspendida (No puede entrar)',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: activo ? Colors.green.shade700 : Colors.red,
+                      ),
+                    ),
+                    value: activo,
+                    onChanged: (v) => setStateModal(() => activo = v),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1F4E78),
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () async {
+                if (userCtrl.text.isEmpty ||
+                    passCtrl.text.isEmpty ||
+                    nombreCtrl.text.isEmpty)
+                  return;
+                await http.post(
+                  Uri.parse('$baseUrl/usuarios'),
+                  headers: {'Content-Type': 'application/json'},
+                  body: json.encode({
+                    'username': userCtrl.text.trim(),
+                    'password': passCtrl.text.trim(),
+                    'nombre_completo': nombreCtrl.text.trim(),
+                    'rol': rol,
+                    'sede': rol == 'admin' ? 'TODAS' : sede,
+                    'modulos_permitidos': rol == 'admin'
+                        ? '1,2,3,4,5,6'
+                        : modulosElegidos.join(','),
+                    'activo': activo,
+                  }),
+                );
+                if (mounted) Navigator.pop(ctx);
+                cargarUsuarios();
+              },
+              icon: const Icon(Icons.save),
+              label: const Text('Guardar Usuario'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              const Text(
+                'Administración de Facilitadores y Sedes (Alquileres)',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1F4E78),
+                ),
+              ),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1F4E78),
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: () => _abrirFormularioUsuario(),
+                icon: const Icon(Icons.person_add),
+                label: const Text('Nuevo Facilitador / Sede'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Creá usuarios para cada localidad (Mosconi, Tartagal, Orán, etc.) y asignales únicamente los módulos que contrataron.',
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: cargando
+                ? const Center(child: CircularProgressIndicator())
+                : ListView.builder(
+                    itemCount: usuarios.length,
+                    itemBuilder: (context, index) {
+                      final u = usuarios[index];
+                      bool activo = u['activo'] ?? true;
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        child: ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: activo
+                                ? const Color(0xFF1F4E78)
+                                : Colors.red,
+                            child: Icon(
+                              u['rol'] == 'admin'
+                                  ? Icons.security
+                                  : Icons.location_city,
+                              color: Colors.white,
+                            ),
+                          ),
+                          title: Text(
+                            '${u['nombre_completo']} (Usuario: ${u['username']} | Clave: ${u['password']})',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          subtitle: Text(
+                            'Sede: ${u['sede']}  •  Módulos habilitados: ${u['modulos_permitidos']}  •  Estado: ${activo ? "ACTIVO" : "SUSPENDIDO"}',
+                          ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.edit,
+                                  color: Color(0xFF1F4E78),
+                                ),
+                                onPressed: () => _abrirFormularioUsuario(
+                                  usuarioExistente: u,
+                                ),
+                              ),
+                              if (u['username'] != 'admin')
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.delete_outline,
+                                    color: Colors.red,
+                                  ),
+                                  onPressed: () async {
+                                    await http.delete(
+                                      Uri.parse('$baseUrl/usuarios/${u['id']}'),
+                                    );
+                                    cargarUsuarios();
+                                  },
+                                ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ============================================================================
+// PANTALLA 1: ALUMNOS (AISLADOS POR SEDE)
 // ============================================================================
 class PantallaAlumnos extends StatefulWidget {
+  final String sede;
   final int anio;
   final String periodo;
   final int modulo;
   final String orientacion;
   const PantallaAlumnos({
     super.key,
+    required this.sede,
     required this.anio,
     required this.periodo,
     required this.modulo,
@@ -293,7 +946,7 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
     setState(() => cargando = true);
     try {
       final url = Uri.parse(
-        '$baseUrl/alumnos_cursada?modulo=${widget.modulo}&orientacion=${Uri.encodeComponent(widget.orientacion)}&anio=${widget.anio}&periodo=${Uri.encodeComponent(widget.periodo)}',
+        '$baseUrl/alumnos_cursada?sede=${Uri.encodeComponent(widget.sede)}&modulo=${widget.modulo}&orientacion=${Uri.encodeComponent(widget.orientacion)}&anio=${widget.anio}&periodo=${Uri.encodeComponent(widget.periodo)}',
       );
       final response = await http.get(url);
       if (response.statusCode == 200) {
@@ -307,7 +960,6 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
     }
   }
 
-  // --- 1. TARJETA ACADÉMICA RÁPIDA (AL HACER CLICK EN EL ALUMNO) ---
   void _abrirTarjetaAcademica(dynamic alumno) {
     String condicion = alumno['condicion'] ?? 'Cursando';
     bool debeDefensa = alumno['debe_defensa'] ?? false;
@@ -372,7 +1024,7 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
                     ),
                   ),
                   Text(
-                    'DNI: ${alumno['dni']} | ${widget.anio} - ${widget.periodo} (Mód. ${widget.modulo})',
+                    'Sede: ${widget.sede} | DNI: ${alumno['dni']} | ${widget.anio} (${widget.periodo})',
                     style: const TextStyle(fontSize: 12, color: Colors.grey),
                   ),
                 ],
@@ -431,7 +1083,6 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
                               );
                             }).toList(),
                       ),
-
                       if (condicion == 'Libre') ...[
                         const SizedBox(height: 12),
                         Container(
@@ -483,7 +1134,6 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
                           ),
                         ),
                       ],
-
                       if (condicion == 'Regular' || debeDefensa) ...[
                         const SizedBox(height: 12),
                         SwitchListTile(
@@ -494,17 +1144,12 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          subtitle: const Text(
-                            'Si está activo, aunque termine la cursada no egresa hasta defender.',
-                            style: TextStyle(fontSize: 11),
-                          ),
                           value: debeDefensa,
                           activeColor: Colors.orange.shade800,
                           onChanged: (v) =>
                               setStateDialog(() => debeDefensa = v),
                         ),
                       ],
-
                       const Divider(height: 24),
                       SwitchListTile(
                         contentPadding: EdgeInsets.zero,
@@ -520,12 +1165,7 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
                           });
                         },
                       ),
-                      if (debeModulosAnteriores) ...[
-                        const Text(
-                          'Seleccioná qué módulos debe:',
-                          style: TextStyle(fontSize: 12, color: Colors.grey),
-                        ),
-                        const SizedBox(height: 6),
+                      if (debeModulosAnteriores)
                         Wrap(
                           spacing: 8,
                           children: ['1', '2', '3', '4', '5'].map((numMod) {
@@ -548,51 +1188,31 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
                             );
                           }).toList(),
                         ),
-                      ],
-
                       const Divider(height: 24),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: egresado
-                              ? Colors.teal.shade50
-                              : Colors.grey.shade100,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(
+                          egresado
+                              ? '🎓 ¡ALUMNO EGRESADO / RECIBIDO!'
+                              : 'Marcar como Egresado (Se recibió)',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
                             color: egresado
-                                ? Colors.teal
-                                : Colors.grey.shade300,
+                                ? Colors.teal.shade800
+                                : Colors.black87,
+                            fontSize: 14,
                           ),
                         ),
-                        child: SwitchListTile(
-                          contentPadding: EdgeInsets.zero,
-                          title: Text(
-                            egresado
-                                ? '🎓 ¡ALUMNO EGRESADO / RECIBIDO!'
-                                : 'Marcar como Egresado (Se recibió)',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: egresado
-                                  ? Colors.teal.shade800
-                                  : Colors.black87,
-                              fontSize: 14,
-                            ),
-                          ),
-                          subtitle: Text(
-                            puedeEgresar
-                                ? 'Cumple todo: Promocionó Mód. 6 y no debe módulos previos.'
-                                : 'Requiere aprobar Mód. 6, defensa y no deber módulos (1 al 5).',
-                            style: const TextStyle(fontSize: 11),
-                          ),
-                          value: egresado,
-                          activeColor: Colors.teal,
-                          onChanged: (v) => setStateDialog(() => egresado = v),
+                        subtitle: Text(
+                          puedeEgresar
+                              ? 'Cumple todo para egresar.'
+                              : 'Requiere aprobar Mód. 6 y no deber módulos.',
+                          style: const TextStyle(fontSize: 11),
                         ),
+                        value: egresado,
+                        activeColor: Colors.teal,
+                        onChanged: (v) => setStateDialog(() => egresado = v),
                       ),
-
                       const Divider(height: 24),
                       const Text(
                         'Historial de Períodos Cursados:',
@@ -610,11 +1230,6 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
                             child: CircularProgressIndicator(strokeWidth: 2),
                           ),
                         )
-                      else if (historialAlumno.isEmpty)
-                        const Text(
-                          'Sin registros previos.',
-                          style: TextStyle(fontSize: 12, color: Colors.grey),
-                        )
                       else
                         ...historialAlumno.map(
                           (h) => Container(
@@ -628,14 +1243,14 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(
-                                  '${h['anio']} (${h['periodo']}) - Mód. ${h['numero_modulo']}',
+                                  '${h['anio']} (${h['periodo']}) - Mód. ${h['numero_modulo']} [${h['sede']}]',
                                   style: const TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 12,
                                   ),
                                 ),
                                 Text(
-                                  '${h['condicion']}${h['presento_nota_recursar'] == true ? ' (Con Nota)' : ''}',
+                                  '${h['condicion']}',
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.bold,
@@ -694,7 +1309,6 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
     );
   }
 
-  // --- 2. EXPORTAR PDF DE LIBRES, REGULARES, PROMOCIONADOS O EGRESADOS ---
   Future<void> _exportarListadoPDF(String condicionFiltro) async {
     List<dynamic> filtrados = alumnos.where((a) {
       if (condicionFiltro == 'Todos') return true;
@@ -713,15 +1327,15 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
                 pw.Text(
-                  'REPORTE DE ALUMNOS: ${condicionFiltro.toUpperCase()}',
+                  'SEDE ${widget.sede.toUpperCase()} - ALUMNOS: ${condicionFiltro.toUpperCase()}',
                   style: pw.TextStyle(
-                    fontSize: 18,
+                    fontSize: 16,
                     fontWeight: pw.FontWeight.bold,
                   ),
                 ),
                 pw.Text(
                   'Año: ${widget.anio} | ${widget.periodo} | Módulo ${widget.modulo} - Orientación: ${widget.orientacion}',
-                  style: const pw.TextStyle(fontSize: 12),
+                  style: const pw.TextStyle(fontSize: 11),
                 ),
                 pw.SizedBox(height: 8),
               ],
@@ -766,10 +1380,9 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
         ],
       ),
     );
-
     await Printing.layoutPdf(
       onLayout: (format) async => pdf.save(),
-      name: 'Listado_${condicionFiltro}_Mod${widget.modulo}_${widget.anio}.pdf',
+      name: 'Listado_${widget.sede}_${condicionFiltro}.pdf',
     );
   }
 
@@ -777,39 +1390,36 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Exportar Listado en PDF'),
+        title: Text('Exportar PDF (${widget.sede})'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Elegí qué nómina de alumnos querés generar en PDF:'),
-            const SizedBox(height: 12),
-            ...['Promocionado', 'Regular', 'Libre', 'Egresados', 'Todos'].map(
-              (tipo) => Padding(
-                padding: const EdgeInsets.only(bottom: 8.0),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _colorCondicion(tipo),
-                      foregroundColor: Colors.white,
+          children: ['Promocionado', 'Regular', 'Libre', 'Egresados', 'Todos']
+              .map(
+                (tipo) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8.0),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _colorCondicion(tipo),
+                        foregroundColor: Colors.white,
+                      ),
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        _exportarListadoPDF(tipo);
+                      },
+                      icon: const Icon(Icons.picture_as_pdf),
+                      label: Text('Exportar Alumnos: $tipo'),
                     ),
-                    onPressed: () {
-                      Navigator.pop(ctx);
-                      _exportarListadoPDF(tipo);
-                    },
-                    icon: const Icon(Icons.picture_as_pdf),
-                    label: Text('Exportar Alumnos: $tipo'),
                   ),
                 ),
-              ),
-            ),
-          ],
+              )
+              .toList(),
         ),
       ),
     );
   }
 
-  // --- 3. ASISTENTE DE PASE DE PERÍODO ---
   void _mostrarAsistentePasePeriodo() {
     int anioDestino = widget.periodo == '2° Período'
         ? widget.anio + 1
@@ -825,18 +1435,16 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateModal) {
           List<dynamic> candidatos = alumnos.where((a) {
-            if (modoSeleccion == 'RecursantesConNota') {
+            if (modoSeleccion == 'RecursantesConNota')
               return a['condicion'] == 'Libre' &&
                   a['presento_nota_recursar'] == true;
-            } else {
-              return (a['condicion'] == 'Promocionado' ||
-                      a['condicion'] == 'Regular') &&
-                  a['egresado'] != true;
-            }
+            return (a['condicion'] == 'Promocionado' ||
+                    a['condicion'] == 'Regular') &&
+                a['egresado'] != true;
           }).toList();
 
           return AlertDialog(
-            title: const Text('Pasar Alumnos al Próximo Período'),
+            title: Text('Fin de Período - Sede ${widget.sede}'),
             content: Container(
               constraints: const BoxConstraints(maxWidth: 520),
               width: double.maxFinite,
@@ -844,14 +1452,9 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Los datos actuales quedarán guardados en el historial de este período. Se creará una nueva inscripción en el período destino:',
-                      style: TextStyle(fontSize: 12, color: Colors.grey),
-                    ),
-                    const SizedBox(height: 12),
                     RadioListTile<String>(
                       title: const Text(
-                        'Libres que presentaron nota (Recursan este mismo módulo)',
+                        'Libres con Nota presentada (Recursan el mismo módulo)',
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.bold,
@@ -866,7 +1469,7 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
                     ),
                     RadioListTile<String>(
                       title: const Text(
-                        'Promocionados / Regulares (Pasan al módulo siguiente)',
+                        'Promocionados / Regulares (Avanzan al módulo siguiente)',
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.bold,
@@ -882,11 +1485,6 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
                       }),
                     ),
                     const Divider(),
-                    const Text(
-                      'Período y Módulo de Destino:',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 8),
                     Wrap(
                       spacing: 10,
                       runSpacing: 10,
@@ -958,25 +1556,18 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      'Alumnos que cumplen la condición (${candidatos.length}):',
+                      'Alumnos seleccionados (${candidatos.length}):',
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 13,
                       ),
                     ),
-                    const SizedBox(height: 6),
-                    if (candidatos.isEmpty)
-                      const Text(
-                        'Ningún alumno cumple este filtro todavía.',
-                        style: TextStyle(color: Colors.orange, fontSize: 12),
-                      )
-                    else
-                      ...candidatos.map(
-                        (c) => Text(
-                          '• ${c['nombre_completo']} (${c['dni']})',
-                          style: const TextStyle(fontSize: 12),
-                        ),
+                    ...candidatos.map(
+                      (c) => Text(
+                        '• ${c['nombre_completo']} (${c['dni']})',
+                        style: const TextStyle(fontSize: 12),
                       ),
+                    ),
                   ],
                 ),
               ),
@@ -1004,6 +1595,7 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
                             'orientacion': widget.orientacion,
                             'anio': anioDestino,
                             'periodo': periodoDestino,
+                            'sede': widget.sede,
                           }),
                         );
                         if (res.statusCode == 200 && mounted) {
@@ -1025,7 +1617,6 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
     );
   }
 
-  // --- FUNCIONES DE ALTA Y CARGA MASIVA ---
   Future<void> _procesarTextoMasivo(String textoCrudo) async {
     List<String> lineas = const LineSplitter().convert(textoCrudo);
     List<Map<String, String>> listaAEnviar = [];
@@ -1067,6 +1658,7 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
           'orientacion': widget.orientacion,
           'anio': widget.anio,
           'periodo': widget.periodo,
+          'sede': widget.sede,
         }),
       );
       if (res.statusCode == 200) {
@@ -1089,7 +1681,7 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Carga Masiva - ${widget.anio} (${widget.periodo})'),
+        title: Text('Carga Masiva - ${widget.sede}'),
         content: Container(
           constraints: const BoxConstraints(maxWidth: 550),
           width: double.maxFinite,
@@ -1107,27 +1699,20 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
                     ClipboardData? data = await Clipboard.getData(
                       Clipboard.kTextPlain,
                     );
-                    if (data != null && data.text != null) {
-                      textoMasivoCtrl.text = data.text!;
-                    }
+                    if (data?.text != null) textoMasivoCtrl.text = data!.text!;
                   },
                   icon: const Icon(Icons.content_paste),
                   label: const Text(
                     'Pegar Lista desde el Portapapeles (Excel / Word / PDF)',
                   ),
                 ),
-                const SizedBox(height: 12),
-                const Text(
-                  'Formato por renglón: Apellido y Nombre ; DNI ; Contraseña\n(Acepta celdas pegadas directo de Excel, punto y coma o comas):',
-                  style: TextStyle(fontSize: 12, color: Colors.black54),
-                ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 TextField(
                   controller: textoMasivoCtrl,
                   maxLines: 8,
                   decoration: const InputDecoration(
                     border: OutlineInputBorder(),
-                    hintText: 'PEREZ JUAN; 40111222; 40111222\nGOMEZ MARIA; 38999888; 38999888',
+                    hintText: 'PEREZ JUAN; 40111222; 40111222',
                   ),
                 ),
               ],
@@ -1163,7 +1748,7 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Agregar Alumno (${widget.anio} - ${widget.periodo})'),
+        title: Text('Agregar Alumno en ${widget.sede}'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -1216,6 +1801,7 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
                   'orientacion': widget.orientacion,
                   'anio': widget.anio,
                   'periodo': widget.periodo,
+                  'sede': widget.sede,
                 }),
               );
               if (mounted) Navigator.pop(context);
@@ -1433,7 +2019,7 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
                         ),
                         pw.SizedBox(height: 40),
                         pw.Text(
-                          'Se deja constancia de que ${alumno['nombre_completo']} (DNI N° ${alumno['dni']}) cursa el Módulo ${widget.modulo} (${widget.orientacion}) en el ciclo ${widget.anio} (${widget.periodo}).',
+                          'Se deja constancia de que ${alumno['nombre_completo']} (DNI N° ${alumno['dni']}) cursa en la Sede ${widget.sede} el Módulo ${widget.modulo} (${widget.orientacion}) durante el ciclo ${widget.anio} (${widget.periodo}).',
                         ),
                       ],
                     ),
@@ -1507,7 +2093,7 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
             runSpacing: 10,
             children: [
               Text(
-                'Alumnos (${widget.anio} - ${widget.periodo})',
+                'Alumnos [${widget.sede}] - Mód. ${widget.modulo}',
                 style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -1584,20 +2170,15 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
-            '💡 Tocá sobre la tarjeta de cualquier alumno para marcar si quedó Regular/Promocionado/Libre o si debe módulos anteriores.',
-            style: TextStyle(fontSize: 12, color: Colors.black54),
-          ),
-          const SizedBox(height: 8),
           cargando
               ? const Expanded(
                   child: Center(child: CircularProgressIndicator()),
                 )
               : alumnosMostrados.isEmpty
-              ? const Expanded(
+              ? Expanded(
                   child: Center(
                     child: Text(
-                      'No hay alumnos registrados en este filtro/período.',
+                      'No hay alumnos cargados en la sede ${widget.sede} para este filtro.',
                     ),
                   ),
                 )
@@ -1777,15 +2358,17 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
 }
 
 // ============================================================================
-// PANTALLA 2: GRUPOS Y PROYECTOS
+// PANTALLA 2: GRUPOS Y PROYECTOS (AISLADOS POR SEDE)
 // ============================================================================
 class PantallaGrupos extends StatefulWidget {
+  final String sede;
   final int anio;
   final String periodo;
   final int modulo;
   final String orientacion;
   const PantallaGrupos({
     super.key,
+    required this.sede,
     required this.anio,
     required this.periodo,
     required this.modulo,
@@ -1812,12 +2395,12 @@ class _PantallaGruposState extends State<PantallaGrupos> {
     try {
       final resAl = await http.get(
         Uri.parse(
-          '$baseUrl/alumnos_cursada?modulo=${widget.modulo}&orientacion=${Uri.encodeComponent(widget.orientacion)}&anio=${widget.anio}&periodo=${Uri.encodeComponent(widget.periodo)}',
+          '$baseUrl/alumnos_cursada?sede=${Uri.encodeComponent(widget.sede)}&modulo=${widget.modulo}&orientacion=${Uri.encodeComponent(widget.orientacion)}&anio=${widget.anio}&periodo=${Uri.encodeComponent(widget.periodo)}',
         ),
       );
       final resGr = await http.get(
         Uri.parse(
-          '$baseUrl/grupos?modulo=${widget.modulo}&orientacion=${Uri.encodeComponent(widget.orientacion)}&anio=${widget.anio}&periodo=${Uri.encodeComponent(widget.periodo)}',
+          '$baseUrl/grupos?sede=${Uri.encodeComponent(widget.sede)}&modulo=${widget.modulo}&orientacion=${Uri.encodeComponent(widget.orientacion)}&anio=${widget.anio}&periodo=${Uri.encodeComponent(widget.periodo)}',
         ),
       );
       if (resAl.statusCode == 200) alumnosTotales = json.decode(resAl.body);
@@ -1833,7 +2416,7 @@ class _PantallaGruposState extends State<PantallaGrupos> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Crear Nuevo Grupo'),
+        title: Text('Crear Grupo en ${widget.sede}'),
         content: TextField(
           controller: nombreCtrl,
           decoration: const InputDecoration(
@@ -1854,6 +2437,7 @@ class _PantallaGruposState extends State<PantallaGrupos> {
                 Uri.parse('$baseUrl/grupos'),
                 headers: {'Content-Type': 'application/json'},
                 body: json.encode({
+                  'sede': widget.sede,
                   'numero_modulo': widget.modulo,
                   'orientacion': widget.orientacion,
                   'anio': widget.anio,
@@ -2191,7 +2775,7 @@ class _PantallaGruposState extends State<PantallaGrupos> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Grupos (${widget.anio} - ${widget.periodo})',
+                'Grupos [${widget.sede}] - Mód. ${widget.modulo}',
                 style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -2214,8 +2798,10 @@ class _PantallaGruposState extends State<PantallaGrupos> {
             child: cargando
                 ? const Center(child: CircularProgressIndicator())
                 : grupos.isEmpty
-                ? const Center(
-                    child: Text('No hay grupos creados en este período.'),
+                ? Center(
+                    child: Text(
+                      'No hay grupos creados en la sede ${widget.sede}.',
+                    ),
                   )
                 : GridView.builder(
                     gridDelegate:
@@ -2282,15 +2868,17 @@ class _PantallaGruposState extends State<PantallaGrupos> {
 }
 
 // ============================================================================
-// PANTALLA 3: SEGUIMIENTO Y BOT (CON SELECCIÓN DE ALUMNOS Y DESBLOQUEO)
+// PANTALLA 3: SEGUIMIENTO Y BOT (AISLADO POR SEDE)
 // ============================================================================
 class PantallaSeguimiento extends StatefulWidget {
+  final String sede;
   final int anio;
   final String periodo;
   final int modulo;
   final String orientacion;
   const PantallaSeguimiento({
     super.key,
+    required this.sede,
     required this.anio,
     required this.periodo,
     required this.modulo,
@@ -2326,7 +2914,7 @@ class _PantallaSeguimientoState extends State<PantallaSeguimiento> {
     try {
       final response = await http.get(
         Uri.parse(
-          '$baseUrl/alumnos_cursada?modulo=${widget.modulo}&orientacion=${Uri.encodeComponent(widget.orientacion)}&anio=${widget.anio}&periodo=${Uri.encodeComponent(widget.periodo)}',
+          '$baseUrl/alumnos_cursada?sede=${Uri.encodeComponent(widget.sede)}&modulo=${widget.modulo}&orientacion=${Uri.encodeComponent(widget.orientacion)}&anio=${widget.anio}&periodo=${Uri.encodeComponent(widget.periodo)}',
         ),
       );
       if (response.statusCode == 200) {
@@ -2351,7 +2939,7 @@ class _PantallaSeguimientoState extends State<PantallaSeguimiento> {
         builder: (context, setStateModal) {
           bool todosMarcados = seleccionados.length == cursadas.length;
           return AlertDialog(
-            title: const Text('Seleccionar Alumnos para el Bot'),
+            title: Text('Bot Moodle - Sede ${widget.sede}'),
             content: Container(
               constraints: const BoxConstraints(maxWidth: 480, maxHeight: 420),
               width: double.maxFinite,
@@ -2365,13 +2953,12 @@ class _PantallaSeguimientoState extends State<PantallaSeguimiento> {
                     value: todosMarcados,
                     onChanged: (v) {
                       setStateModal(() {
-                        if (v == true) {
+                        if (v == true)
                           seleccionados = cursadas
                               .map<int>((c) => c['cursada_id'] as int)
                               .toSet();
-                        } else {
+                        else
                           seleccionados.clear();
-                        }
                       });
                     },
                   ),
@@ -2410,7 +2997,7 @@ class _PantallaSeguimientoState extends State<PantallaSeguimiento> {
                   verificarEstadoBot();
                 },
                 child: const Text(
-                  'Destrabar / Reiniciar Bot',
+                  'Destrabar Bot',
                   style: TextStyle(color: Colors.red),
                 ),
               ),
@@ -2451,6 +3038,7 @@ class _PantallaSeguimientoState extends State<PantallaSeguimiento> {
         Uri.parse('$baseUrl/ejecutar_bot'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
+          'sede': widget.sede,
           'modulo': widget.modulo,
           'orientacion': widget.orientacion,
           'anio': widget.anio,
@@ -2462,8 +3050,7 @@ class _PantallaSeguimientoState extends State<PantallaSeguimiento> {
       if (res.statusCode == 200) {
         setState(() {
           botEjecutando = true;
-          progresoBot =
-              'Iniciando seguimiento de ${cursadaIds.length} alumnos...';
+          progresoBot = 'Iniciando seguimiento en ${widget.sede}...';
         });
         _iniciarMonitoreoBot();
       }
@@ -2505,7 +3092,7 @@ class _PantallaSeguimientoState extends State<PantallaSeguimiento> {
 
   void copiarParaWhatsApp() {
     String reporteGral =
-        "Seguimiento Mód. ${widget.modulo} (${widget.orientacion} - ${widget.anio} ${widget.periodo}):\n\n";
+        "Seguimiento Sede ${widget.sede} - Mód. ${widget.modulo} (${widget.orientacion}):\n\n";
     for (var c in cursadas) {
       if (c['resumen_texto'] != null &&
           c['resumen_texto'].toString().isNotEmpty) {
@@ -2535,7 +3122,7 @@ class _PantallaSeguimientoState extends State<PantallaSeguimiento> {
             runSpacing: 12,
             children: [
               Text(
-                'Seguimiento - Mód. ${widget.modulo}',
+                'Seguimiento [${widget.sede}] - Mód. ${widget.modulo}',
                 style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
