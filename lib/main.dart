@@ -4,9 +4,7 @@ import 'package:flutter/services.dart';
 
 import 'dart:convert';
 import 'dart:async';
-import 'dart:io';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -105,7 +103,6 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
         actions: [
-          // Selector Año
           _chipDropdown<int>(
             value: _anioActual,
             items: _aniosDisponibles
@@ -113,7 +110,6 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
                 .toList(),
             onChanged: (v) => setState(() => _anioActual = v!),
           ),
-          // Selector Período (1° o 2°)
           _chipDropdown<String>(
             value: _periodoActual,
             items: _periodosDisponibles
@@ -126,7 +122,6 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
                 .toList(),
             onChanged: (v) => setState(() => _periodoActual = v!),
           ),
-          // Selector Módulo
           _chipDropdown<int>(
             value: _moduloActual,
             items: _modulosDisponibles
@@ -134,7 +129,6 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
                 .toList(),
             onChanged: (v) => setState(() => _moduloActual = v!),
           ),
-          // Selector Orientación
           _chipDropdown<String>(
             value: _orientacionActual,
             items: _orientacionesDisponibles
@@ -339,7 +333,6 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setStateDialog) {
-            // Cargar historial una sola vez al abrir la tarjeta
             if (cargandoHistorial) {
               http
                   .get(
@@ -360,7 +353,6 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
                   );
             }
 
-            // Regla automática de sugerencia de Egreso (Módulo 6 + Promocionado + No debe defensa + No debe módulos anteriores)
             bool puedeEgresar =
                 (widget.modulo == 6 &&
                 condicion == 'Promocionado' &&
@@ -440,7 +432,6 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
                             }).toList(),
                       ),
 
-                      // Si quedó LIBRE: Mostrar opciones de Notificado y Presentó Nota
                       if (condicion == 'Libre') ...[
                         const SizedBox(height: 12),
                         Container(
@@ -493,7 +484,6 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
                         ),
                       ],
 
-                      // Si quedó REGULAR: Mostrar advertencia de Defensa de Proyecto
                       if (condicion == 'Regular' || debeDefensa) ...[
                         const SizedBox(height: 12),
                         SwitchListTile(
@@ -516,7 +506,6 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
                       ],
 
                       const Divider(height: 24),
-                      // MÓDULOS ANTERIORES ADEUDADOS (1, 2, 3, 4, 5)
                       SwitchListTile(
                         contentPadding: EdgeInsets.zero,
                         title: const Text(
@@ -562,7 +551,6 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
                       ],
 
                       const Divider(height: 24),
-                      // ESTADO DE EGRESO (Especial Módulo 6)
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 12,
@@ -821,7 +809,7 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
     );
   }
 
-  // --- 3. ASISTENTE DE PASE DE PERÍODO (PROMOVER ALUMNOS O RECURSAR LIBRES CON NOTA) ---
+  // --- 3. ASISTENTE DE PASE DE PERÍODO ---
   void _mostrarAsistentePasePeriodo() {
     int anioDestino = widget.periodo == '2° Período'
         ? widget.anio + 1
@@ -830,8 +818,7 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
         ? '1° Período'
         : '2° Período';
     int moduloDestino = widget.modulo < 6 ? widget.modulo + 1 : 6;
-    String modoSeleccion =
-        'RecursantesConNota'; // 'Promocionados' o 'RecursantesConNota'
+    String modoSeleccion = 'RecursantesConNota';
 
     showDialog(
       context: context,
@@ -1038,7 +1025,7 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
     );
   }
 
-  // --- FUNCIONES DE ALTA, CARGA MASIVA, LEGAJO Y CONSTANCIA INDIVIDUAL ---
+  // --- FUNCIONES DE ALTA Y CARGA MASIVA ---
   Future<void> _procesarTextoMasivo(String textoCrudo) async {
     List<String> lineas = const LineSplitter().convert(textoCrudo);
     List<Map<String, String>> listaAEnviar = [];
@@ -1112,39 +1099,35 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1F4E78),
+                    foregroundColor: Colors.white,
+                  ),
                   onPressed: () async {
-                    FilePickerResult? result = await FilePicker.platform
-                        .pickFiles(
-                          type: FileType.custom,
-                          allowedExtensions: ['csv', 'txt'],
-                          withData: true,
-                        );
-                    if (result != null) {
-                      String contenido = result.files.single.bytes != null
-                          ? utf8.decode(
-                              result.files.single.bytes!,
-                              allowMalformed: true,
-                            )
-                          : await File(result.files.single.path!)
-                                .readAsString();
-                      textoMasivoCtrl.text = contenido;
+                    ClipboardData? data = await Clipboard.getData(
+                      Clipboard.kTextPlain,
+                    );
+                    if (data != null && data.text != null) {
+                      textoMasivoCtrl.text = data.text!;
                     }
                   },
-                  icon: const Icon(Icons.upload_file),
-                  label: const Text('Seleccionar Archivo CSV o TXT'),
+                  icon: const Icon(Icons.content_paste),
+                  label: const Text(
+                    'Pegar Lista desde el Portapapeles (Excel / Word / PDF)',
+                  ),
                 ),
                 const SizedBox(height: 12),
                 const Text(
-                  'O pegá directo las columnas de Excel (Apellido y Nombre ; DNI ; Contraseña):',
-                  style: TextStyle(fontSize: 12),
+                  'Formato por renglón: Apellido y Nombre ; DNI ; Contraseña\n(Acepta celdas pegadas directo de Excel, punto y coma o comas):',
+                  style: TextStyle(fontSize: 12, color: Colors.black54),
                 ),
                 const SizedBox(height: 8),
                 TextField(
                   controller: textoMasivoCtrl,
-                  maxLines: 7,
+                  maxLines: 8,
                   decoration: const InputDecoration(
                     border: OutlineInputBorder(),
-                    hintText: 'PEREZ JUAN; 40111222; 40111222',
+                    hintText: 'PEREZ JUAN; 40111222; 40111222\nGOMEZ MARIA; 38999888; 38999888',
                   ),
                 ),
               ],
@@ -1550,7 +1533,7 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
                       foregroundColor: Colors.white,
                     ),
                     onPressed: _mostrarDialogoCargaMasiva,
-                    icon: const Icon(Icons.upload_file, size: 18),
+                    icon: const Icon(Icons.content_paste, size: 18),
                     label: const Text('Importar Lista'),
                   ),
                   ElevatedButton.icon(
@@ -1576,7 +1559,6 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
             ],
           ),
           const SizedBox(height: 10),
-          // Filtros rápidos por condición
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
@@ -1633,7 +1615,6 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
                         elevation: 1.5,
                         child: InkWell(
                           borderRadius: BorderRadius.circular(12),
-                          // CLICK EN LA TARJETA -> ABRE ESTADO ACADÉMICO Y MÓDULOS ADEUDADOS
                           onTap: () => _abrirTarjetaAcademica(al),
                           child: Padding(
                             padding: const EdgeInsets.symmetric(
@@ -1796,7 +1777,7 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
 }
 
 // ============================================================================
-// PANTALLA 2: GRUPOS Y PROYECTOS (CON AÑO Y PERÍODO)
+// PANTALLA 2: GRUPOS Y PROYECTOS
 // ============================================================================
 class PantallaGrupos extends StatefulWidget {
   final int anio;
@@ -2359,7 +2340,6 @@ class _PantallaSeguimientoState extends State<PantallaSeguimiento> {
     }
   }
 
-  // Abre ventana para elegir a qué alumnos hacerles el seguimiento
   void _abrirSelectorAlumnosBot() {
     Set<int> seleccionados = cursadas
         .map<int>((c) => c['cursada_id'] as int)
