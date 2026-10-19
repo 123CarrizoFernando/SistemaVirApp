@@ -11,7 +11,7 @@ import 'package:printing/printing.dart';
 
 const String baseUrl = 'https://api-sistema-vir.onrender.com/api';
 
-// LISTA OFICIAL DE LAS 29 SEDES DEL SISTEMA VIRTUAL N° 9002 (SEGÚN EL MAPA)
+// LISTA OFICIAL DE LAS SEDES DEL SISTEMA VIRTUAL N° 9002
 const List<String> SEDES_OFICIALES = [
   'Aguaray',
   'Aguas Blancas',
@@ -73,7 +73,7 @@ class SistemaAcademicoApp extends StatelessWidget {
 }
 
 // ============================================================================
-// PANTALLA DE INICIO DE SESIÓN (CONTROL DE ACCESO PARA INQUILINOS / SEDES)
+// PANTALLA DE INICIO DE SESIÓN (LOGIN)
 // ============================================================================
 class PantallaLogin extends StatefulWidget {
   const PantallaLogin({super.key});
@@ -239,7 +239,7 @@ class _PantallaLoginState extends State<PantallaLogin> {
 }
 
 // ============================================================================
-// ESTRUCTURA PRINCIPAL: BLOQUEA SEDE Y MÓDULOS SEGÚN EL PERFIL DEL USUARIO
+// ESTRUCTURA PRINCIPAL: BLOQUEA SEDE Y MÓDULOS + BOTÓN DE SALIR / DESLOGUEARSE
 // ============================================================================
 class PantallaPrincipal extends StatefulWidget {
   final Map<String, dynamic> usuarioActual;
@@ -274,13 +274,10 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
     _esSuperAdmin =
         (widget.usuarioActual['rol'] == 'admin' ||
         widget.usuarioActual['sede'] == 'TODAS');
-
-    // Si es SuperAdmin empieza viendo Tartagal pero puede cambiar a cualquiera de las 29 sedes
     _sedeActual = _esSuperAdmin
         ? 'Tartagal'
         : widget.usuarioActual['sede'].toString();
 
-    // Filtramos únicamente los módulos que este usuario tiene permitidos por contrato
     String modsStr =
         widget.usuarioActual['modulos_permitidos']?.toString() ?? '1,2,3,4,5,6';
     _modulosDisponibles = modsStr
@@ -291,6 +288,42 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
     if (_modulosDisponibles.isEmpty) _modulosDisponibles = [6];
     _modulosDisponibles.sort();
     _moduloActual = _modulosDisponibles.first;
+  }
+
+  Future<void> _confirmarCerrarSesion() async {
+    bool salir =
+        await showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Cerrar Sesión'),
+            content: Text(
+              '¿Querés salir de la cuenta de ${widget.usuarioActual['nombre_completo']}?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancelar'),
+              ),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: () => Navigator.pop(ctx, true),
+                icon: const Icon(Icons.logout, size: 18),
+                label: const Text('Sí, Salir'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+
+    if (salir && mounted) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const PantallaLogin()),
+      );
+    }
   }
 
   @override
@@ -341,19 +374,16 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              _esSuperAdmin
-                  ? 'Admin General (${widget.usuarioActual['nombre_completo']})'
-                  : 'Sede: $_sedeActual',
+              _esSuperAdmin ? 'Admin General' : 'Sede: $_sedeActual',
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
             ),
             Text(
-              'Facilitador: ${widget.usuarioActual['nombre_completo']}',
+              'Usuario: ${widget.usuarioActual['nombre_completo']}',
               style: const TextStyle(fontSize: 11, color: Colors.white70),
             ),
           ],
         ),
         actions: [
-          // Si es SuperAdmin puede elegir qué Sede ver; si es un facilitador alquilado, su sede está bloqueada
           if (_esSuperAdmin)
             _chipDropdown<String>(
               value: _sedeActual,
@@ -362,7 +392,7 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
                   .toList(),
               onChanged: (v) => setState(() => _sedeActual = v!),
             )
-          else
+          else if (!esCelular)
             Container(
               margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
@@ -385,7 +415,6 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
               ),
             ),
 
-          // Selector de Año
           _chipDropdown<int>(
             value: _anioActual,
             items: _aniosDisponibles
@@ -393,7 +422,6 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
                 .toList(),
             onChanged: (v) => setState(() => _anioActual = v!),
           ),
-          // Selector de Período
           _chipDropdown<String>(
             value: _periodoActual,
             items: _periodosDisponibles
@@ -406,7 +434,6 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
                 .toList(),
             onChanged: (v) => setState(() => _periodoActual = v!),
           ),
-          // Selector de Módulo (SOLO MUESTRA LOS MÓDULOS ASIGNADOS A ESTE USUARIO)
           _chipDropdown<int>(
             value: _moduloActual,
             items: _modulosDisponibles
@@ -414,7 +441,6 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
                 .toList(),
             onChanged: (v) => setState(() => _moduloActual = v!),
           ),
-          // Selector de Orientación
           _chipDropdown<String>(
             value: _orientacionActual,
             items: _orientacionesDisponibles
@@ -422,22 +448,35 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
                   (o) => DropdownMenuItem(
                     value: o,
                     child: Text(
-                      esCelular && o.startsWith('Economía') ? 'Economía' : o,
+                      esCelular && o.startsWith('Economía') ? 'Econ.' : o,
                     ),
                   ),
                 )
                 .toList(),
             onChanged: (v) => setState(() => _orientacionActual = v!),
           ),
-          IconButton(
-            tooltip: 'Cerrar Sesión',
-            icon: const Icon(Icons.logout, color: Colors.amberAccent),
-            onPressed: () {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (_) => const PantallaLogin()),
-              );
-            },
+          // BOTÓN DE SALIR / DESLOGUEARSE BIEN VISIBLE EN LA BARRA SUPERIOR
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 6.0),
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red.shade700,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 0,
+                ),
+              ),
+              onPressed: _confirmarCerrarSesion,
+              icon: const Icon(Icons.logout, size: 16),
+              label: Text(
+                esCelular ? '' : 'Salir',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -456,6 +495,23 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
               selectedLabelTextStyle: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
+              ),
+              trailing: Expanded(
+                child: Align(
+                  alignment: Alignment.bottomCenter,
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 20.0),
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.amberAccent,
+                        side: const BorderSide(color: Colors.amberAccent),
+                      ),
+                      onPressed: _confirmarCerrarSesion,
+                      icon: const Icon(Icons.logout),
+                      label: const Text('Cerrar Sesión'),
+                    ),
+                  ),
+                ),
               ),
               destinations: [
                 const NavigationRailDestination(
@@ -565,7 +621,7 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
 }
 
 // ============================================================================
-// PANTALLA 5 (SOLO ADMIN): GESTIÓN DE USUARIOS, SEDES Y MÓDULOS ALQUILADOS
+// PANTALLA 5 (SOLO ADMIN): GESTIÓN DE USUARIOS, EDICIÓN Y SUSPENSIÓN RÁPIDA
 // ============================================================================
 class PantallaUsuariosSedes extends StatefulWidget {
   const PantallaUsuariosSedes({super.key});
@@ -599,7 +655,70 @@ class _PantallaUsuariosSedesState extends State<PantallaUsuariosSedes> {
     }
   }
 
+  // Cambiar de forma instantánea si pagó o no pagó el alquiler (Habilitar / Deshabilitar)
+  Future<void> _cambiarEstadoPago(dynamic u, bool nuevoEstado) async {
+    if (u['username'] == 'admin' && !nuevoEstado) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'No podés deshabilitar tu cuenta principal de Administrador.',
+          ),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    try {
+      // Actualizamos primero con PUT (si actualizaste server.js) y como respaldo con POST
+      final bodyData = json.encode({
+        'username': u['username'],
+        'password': u['password'],
+        'nombre_completo': u['nombre_completo'],
+        'rol': u['rol'],
+        'sede': u['sede'],
+        'modulos_permitidos': u['modulos_permitidos'],
+        'activo': nuevoEstado,
+      });
+
+      var res = await http.put(
+        Uri.parse('$baseUrl/usuarios/${u['id']}'),
+        headers: {'Content-Type': 'application/json'},
+        body: bodyData,
+      );
+
+      if (res.statusCode != 200) {
+        res = await http.post(
+          Uri.parse('$baseUrl/usuarios'),
+          headers: {'Content-Type': 'application/json'},
+          body: bodyData,
+        );
+      }
+
+      if (res.statusCode == 200) {
+        cargarUsuarios();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                nuevoEstado
+                    ? '✅ Cuenta de ${u['nombre_completo']} HABILITADA'
+                    : '⛔ Cuenta de ${u['nombre_completo']} SUSPENDIDA por falta de pago',
+              ),
+              backgroundColor: nuevoEstado ? Colors.green : Colors.red,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print(e);
+    }
+  }
+
+  // Abrir ventana al hacer clic en un usuario para editarlo o crear uno nuevo
   void _abrirFormularioUsuario({dynamic usuarioExistente}) {
+    bool esEdicion = usuarioExistente != null;
     TextEditingController userCtrl = TextEditingController(
       text: usuarioExistente?['username'] ?? '',
     );
@@ -631,9 +750,9 @@ class _PantallaUsuariosSedesState extends State<PantallaUsuariosSedes> {
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateModal) => AlertDialog(
           title: Text(
-            usuarioExistente == null
-                ? 'Crear Cuenta para Facilitador'
-                : 'Editar Facilitador',
+            esEdicion
+                ? 'Editar Facilitador: ${usuarioExistente['nombre_completo']}'
+                : 'Crear Cuenta para Facilitador',
           ),
           content: Container(
             constraints: const BoxConstraints(maxWidth: 500),
@@ -642,6 +761,40 @@ class _PantallaUsuariosSedesState extends State<PantallaUsuariosSedes> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Banner rápido de estado de pago arriba del todo
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 14),
+                    decoration: BoxDecoration(
+                      color: activo ? Colors.green.shade50 : Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: activo ? Colors.green : Colors.red,
+                      ),
+                    ),
+                    child: SwitchListTile(
+                      title: Text(
+                        activo
+                            ? 'CUENTA HABILITADA (Al día)'
+                            : 'CUENTA DESHABILITADA (Falta de pago)',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                          color: activo
+                              ? Colors.green.shade800
+                              : Colors.red.shade800,
+                        ),
+                      ),
+                      subtitle: Text(
+                        activo ? 'El usuario puede ingresar normalmente.' : 'El usuario tiene el acceso bloqueado al intentar loguearse.',
+                        style: const TextStyle(fontSize: 11),
+                      ),
+                      value: activo,
+                      activeColor: Colors.green,
+                      onChanged: (usuarioExistente?['username'] == 'admin')
+                          ? null
+                          : (v) => setStateModal(() => activo = v),
+                    ),
+                  ),
                   TextField(
                     controller: nombreCtrl,
                     decoration: const InputDecoration(
@@ -656,6 +809,7 @@ class _PantallaUsuariosSedesState extends State<PantallaUsuariosSedes> {
                       Expanded(
                         child: TextField(
                           controller: userCtrl,
+                          enabled: usuarioExistente?['username'] != 'admin',
                           decoration: const InputDecoration(
                             labelText: 'Usuario de Login *',
                             border: OutlineInputBorder(),
@@ -688,15 +842,17 @@ class _PantallaUsuariosSedesState extends State<PantallaUsuariosSedes> {
                       DropdownMenuItem(
                         value: 'facilitador',
                         child: Text(
-                          'Facilitador de Sede (Solo ve su ciudad y módulos)',
+                          'Facilitador de Sede (Aislado por ciudad y módulos)',
                         ),
                       ),
                       DropdownMenuItem(
                         value: 'admin',
-                        child: Text('Super Administrador (Ve todas las sedes)'),
+                        child: Text('Super Administrador (Acceso Total)'),
                       ),
                     ],
-                    onChanged: (v) => setStateModal(() => rol = v!),
+                    onChanged: (usuarioExistente?['username'] == 'admin')
+                        ? null
+                        : (v) => setStateModal(() => rol = v!),
                   ),
                   const SizedBox(height: 12),
                   if (rol != 'admin') ...[
@@ -716,7 +872,7 @@ class _PantallaUsuariosSedesState extends State<PantallaUsuariosSedes> {
                     ),
                     const SizedBox(height: 16),
                     const Text(
-                      'Módulos Habilitados (Solo podrá ver los que marques):',
+                      'Módulos Habilitados (Marcá cuáles puede ver y tocar):',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 13,
@@ -745,20 +901,6 @@ class _PantallaUsuariosSedesState extends State<PantallaUsuariosSedes> {
                       }).toList(),
                     ),
                   ],
-                  const Divider(height: 24),
-                  SwitchListTile(
-                    title: Text(
-                      activo
-                          ? 'Cuenta Activa (Alquiler al día)'
-                          : 'Cuenta Suspendida (No puede entrar)',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: activo ? Colors.green.shade700 : Colors.red,
-                      ),
-                    ),
-                    value: activo,
-                    onChanged: (v) => setStateModal(() => activo = v),
-                  ),
                 ],
               ),
             ),
@@ -778,26 +920,44 @@ class _PantallaUsuariosSedesState extends State<PantallaUsuariosSedes> {
                     passCtrl.text.isEmpty ||
                     nombreCtrl.text.isEmpty)
                   return;
-                await http.post(
-                  Uri.parse('$baseUrl/usuarios'),
-                  headers: {'Content-Type': 'application/json'},
-                  body: json.encode({
-                    'username': userCtrl.text.trim(),
-                    'password': passCtrl.text.trim(),
-                    'nombre_completo': nombreCtrl.text.trim(),
-                    'rol': rol,
-                    'sede': rol == 'admin' ? 'TODAS' : sede,
-                    'modulos_permitidos': rol == 'admin'
-                        ? '1,2,3,4,5,6'
-                        : modulosElegidos.join(','),
-                    'activo': activo,
-                  }),
-                );
+                final payload = json.encode({
+                  'username': userCtrl.text.trim(),
+                  'password': passCtrl.text.trim(),
+                  'nombre_completo': nombreCtrl.text.trim(),
+                  'rol': rol,
+                  'sede': rol == 'admin' ? 'TODAS' : sede,
+                  'modulos_permitidos': rol == 'admin'
+                      ? '1,2,3,4,5,6'
+                      : modulosElegidos.join(','),
+                  'activo': activo,
+                });
+
+                if (esEdicion) {
+                  var res = await http.put(
+                    Uri.parse('$baseUrl/usuarios/${usuarioExistente['id']}'),
+                    headers: {'Content-Type': 'application/json'},
+                    body: payload,
+                  );
+                  if (res.statusCode != 200) {
+                    await http.post(
+                      Uri.parse('$baseUrl/usuarios'),
+                      headers: {'Content-Type': 'application/json'},
+                      body: payload,
+                    );
+                  }
+                } else {
+                  await http.post(
+                    Uri.parse('$baseUrl/usuarios'),
+                    headers: {'Content-Type': 'application/json'},
+                    body: payload,
+                  );
+                }
+
                 if (mounted) Navigator.pop(ctx);
                 cargarUsuarios();
               },
               icon: const Icon(Icons.save),
-              label: const Text('Guardar Usuario'),
+              label: Text(esEdicion ? 'Guardar Cambios' : 'Crear Usuario'),
             ),
           ],
         ),
@@ -819,7 +979,7 @@ class _PantallaUsuariosSedesState extends State<PantallaUsuariosSedes> {
             runSpacing: 12,
             children: [
               const Text(
-                'Administración de Facilitadores y Sedes (Alquileres)',
+                'Control de Alquileres, Sedes y Usuarios',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -837,11 +997,12 @@ class _PantallaUsuariosSedesState extends State<PantallaUsuariosSedes> {
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           const Text(
-            'Creá usuarios para cada localidad (Mosconi, Tartagal, Orán, etc.) y asignales únicamente los módulos que contrataron.',
+            '💡 Hacé clic sobre cualquier usuario para editar sus datos/módulos, o usá el interruptor de la derecha para deshabilitarlo al instante si no abonó.',
+            style: TextStyle(fontSize: 12, color: Colors.black54),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
           Expanded(
             child: cargando
                 ? const Center(child: CircularProgressIndicator())
@@ -850,53 +1011,213 @@ class _PantallaUsuariosSedesState extends State<PantallaUsuariosSedes> {
                     itemBuilder: (context, index) {
                       final u = usuarios[index];
                       bool activo = u['activo'] ?? true;
+                      bool esAdminPpal = u['username'] == 'admin';
+
                       return Card(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        child: ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: activo
-                                ? const Color(0xFF1F4E78)
-                                : Colors.red,
-                            child: Icon(
-                              u['rol'] == 'admin'
-                                  ? Icons.security
-                                  : Icons.location_city,
-                              color: Colors.white,
+                        margin: const EdgeInsets.only(bottom: 10),
+                        elevation: 2,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          side: BorderSide(
+                            color: activo
+                                ? Colors.transparent
+                                : Colors.red.shade300,
+                            width: 1.5,
+                          ),
+                        ),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(10),
+                          // CLICK DIRECTO EN LA TARJETA -> ABRE EDICIÓN DEL USUARIO
+                          onTap: () =>
+                              _abrirFormularioUsuario(usuarioExistente: u),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 10,
                             ),
-                          ),
-                          title: Text(
-                            '${u['nombre_completo']} (Usuario: ${u['username']} | Clave: ${u['password']})',
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          subtitle: Text(
-                            'Sede: ${u['sede']}  •  Módulos habilitados: ${u['modulos_permitidos']}  •  Estado: ${activo ? "ACTIVO" : "SUSPENDIDO"}',
-                          ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.edit,
-                                  color: Color(0xFF1F4E78),
-                                ),
-                                onPressed: () => _abrirFormularioUsuario(
-                                  usuarioExistente: u,
-                                ),
-                              ),
-                              if (u['username'] != 'admin')
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.delete_outline,
-                                    color: Colors.red,
+                            child: Row(
+                              children: [
+                                CircleAvatar(
+                                  backgroundColor: activo
+                                      ? const Color(0xFF1F4E78)
+                                      : Colors.red.shade700,
+                                  child: Icon(
+                                    u['rol'] == 'admin'
+                                        ? Icons.security
+                                        : Icons.person,
+                                    color: Colors.white,
                                   ),
-                                  onPressed: () async {
-                                    await http.delete(
-                                      Uri.parse('$baseUrl/usuarios/${u['id']}'),
-                                    );
-                                    cargarUsuarios();
-                                  },
                                 ),
-                            ],
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Flexible(
+                                            child: Text(
+                                              u['nombre_completo'],
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 15,
+                                                decoration: activo
+                                                    ? null
+                                                    : TextDecoration
+                                                          .lineThrough,
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 2,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: activo
+                                                  ? Colors.green.shade100
+                                                  : Colors.red.shade100,
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
+                                            ),
+                                            child: Text(
+                                              activo
+                                                  ? 'ACTIVO'
+                                                  : 'SUSPENDIDO (SIN PAGO)',
+                                              style: TextStyle(
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.bold,
+                                                color: activo
+                                                    ? Colors.green.shade900
+                                                    : Colors.red.shade900,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Usuario: ${u['username']}   |   Clave: ${u['password']}',
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.black87,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Wrap(
+                                        spacing: 8,
+                                        children: [
+                                          Text(
+                                            '📍 Sede: ${u['sede']}',
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              color: Color(0xFF1F4E78),
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          Text(
+                                            '📚 Módulos: ${u['modulos_permitidos']}',
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.black54,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                // INTERRUPTOR RÁPIDO PARA HABILITAR / DESHABILITAR SI NO PAGÓ
+                                Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Switch(
+                                      value: activo,
+                                      activeColor: Colors.green,
+                                      inactiveThumbColor: Colors.red,
+                                      onChanged: esAdminPpal
+                                          ? null
+                                          : (val) => _cambiarEstadoPago(u, val),
+                                    ),
+                                    Text(
+                                      activo ? 'Habilitado' : 'Bloqueado',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: activo
+                                            ? Colors.green.shade700
+                                            : Colors.red,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(width: 8),
+                                IconButton(
+                                  tooltip: 'Editar Usuario',
+                                  icon: const Icon(
+                                    Icons.edit_outlined,
+                                    color: Color(0xFF1F4E78),
+                                  ),
+                                  onPressed: () => _abrirFormularioUsuario(
+                                    usuarioExistente: u,
+                                  ),
+                                ),
+                                if (!esAdminPpal)
+                                  IconButton(
+                                    tooltip: 'Eliminar Cuenta',
+                                    icon: const Icon(
+                                      Icons.delete_outline,
+                                      color: Colors.red,
+                                    ),
+                                    onPressed: () async {
+                                      bool conf =
+                                          await showDialog(
+                                            context: context,
+                                            builder: (c) => AlertDialog(
+                                              title: const Text(
+                                                'Eliminar Usuario',
+                                              ),
+                                              content: Text(
+                                                '¿Seguro que querés eliminar la cuenta de ${u['nombre_completo']}? (Si solo se atrasó en el pago, te conviene apagar su interruptor para suspenderlo).',
+                                              ),
+                                              actions: [
+                                                TextButton(
+                                                  onPressed: () =>
+                                                      Navigator.pop(c, false),
+                                                  child: const Text('Cancelar'),
+                                                ),
+                                                ElevatedButton(
+                                                  style:
+                                                      ElevatedButton.styleFrom(
+                                                        backgroundColor:
+                                                            Colors.red,
+                                                        foregroundColor:
+                                                            Colors.white,
+                                                      ),
+                                                  onPressed: () =>
+                                                      Navigator.pop(c, true),
+                                                  child: const Text('Eliminar'),
+                                                ),
+                                              ],
+                                            ),
+                                          ) ??
+                                          false;
+                                      if (conf) {
+                                        await http.delete(
+                                          Uri.parse(
+                                            '$baseUrl/usuarios/${u['id']}',
+                                          ),
+                                        );
+                                        cargarUsuarios();
+                                      }
+                                    },
+                                  ),
+                              ],
+                            ),
                           ),
                         ),
                       );
