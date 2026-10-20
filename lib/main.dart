@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 
 import 'dart:convert';
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -11,7 +12,12 @@ import 'package:printing/printing.dart';
 
 const String baseUrl = 'https://api-sistema-vir.onrender.com/api';
 
-// LISTA OFICIAL DE LAS SEDES DEL SISTEMA VIRTUAL N° 9002
+// PALETA DE COLORES OFICIAL BASADA EN EL LOGO DEL SISTEMA VIRTUAL N° 9002
+const Color kNegroLogo = Color(0xFF141414);
+const Color kCarbonLogo = Color(0xFF222222);
+const Color kRojoLogo = Color(0xFFD32F2F);
+const Color kNaranjaLogo = Color(0xFFFF3D00);
+
 const List<String> SEDES_OFICIALES = [
   'Aguaray',
   'Aguas Blancas',
@@ -63,7 +69,11 @@ class SistemaAcademicoApp extends StatelessWidget {
     return MaterialApp(
       title: 'Sistema Virtual N° 9002 - Gestión Académica',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1F4E78)),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: kRojoLogo,
+          primary: kRojoLogo,
+          secondary: kNegroLogo,
+        ),
         useMaterial3: true,
       ),
       home: const PantallaLogin(),
@@ -73,7 +83,129 @@ class SistemaAcademicoApp extends StatelessWidget {
 }
 
 // ============================================================================
-// PANTALLA DE INICIO DE SESIÓN (LOGIN)
+// WIDGET DEL LOGO OFICIAL N° 9002 (ESFERA NEGRA 3D, CÍRCULO ROJO, 8 PUNTOS Y LÍNEAS ROJAS)
+// ============================================================================
+class LogoSistema9002 extends StatelessWidget {
+  final double size;
+  const LogoSistema9002({super.key, this.size = 80});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: size,
+      height: size,
+      child: CustomPaint(painter: _Logo9002Painter()),
+    );
+  }
+}
+
+class _Logo9002Painter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final double r = size.width / 2;
+    final Offset center = Offset(r, r);
+
+    // 1. Esfera negra 3D con brillo superior
+    final Path circlePath = Path()
+      ..addOval(Rect.fromCircle(center: center, radius: r));
+    canvas.save();
+    canvas.clipPath(circlePath);
+
+    final Paint spherePaint = Paint()
+      ..shader = RadialGradient(
+        center: const Alignment(-0.3, -0.4),
+        radius: 0.9,
+        colors: [Colors.grey.shade800, const Color(0xFF111111), Colors.black],
+      ).createShader(Rect.fromCircle(center: center, radius: r));
+    canvas.drawCircle(center, r, spherePaint);
+
+    // 2. Franjas rojas curvas en la parte inferior izquierda
+    final Paint stripePaint = Paint()
+      ..color = kRojoLogo
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = size.width * 0.055;
+
+    for (int i = 0; i < 3; i++) {
+      double offset = i * (size.width * 0.085);
+      Path stripe = Path();
+      stripe.moveTo(-size.width * 0.1, size.height * 0.38 + offset);
+      stripe.quadraticBezierTo(
+        size.width * 0.35,
+        size.height * 0.92 + offset * 0.6,
+        size.width * 0.95,
+        size.height * 0.78 + offset * 0.3,
+      );
+      canvas.drawPath(stripe, stripePaint);
+    }
+
+    // 3. Óvalo central rojo/naranja inclinado
+    canvas.save();
+    canvas.translate(size.width * 0.50, size.height * 0.44);
+    canvas.rotate(-0.45);
+
+    final Paint redCenterPaint = Paint()
+      ..color = kNaranjaLogo
+      ..style = PaintingStyle.fill;
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: Offset.zero,
+        width: size.width * 0.28,
+        height: size.height * 0.19,
+      ),
+      redCenterPaint,
+    );
+
+    // 4. 8 óvalos blancos alrededor del centro
+    final Paint whiteDotPaint = Paint()
+      ..color = const Color(0xFFEAEAEA)
+      ..style = PaintingStyle.fill;
+
+    const int numDots = 8;
+    final double rx = size.width * 0.25;
+    final double ry = size.height * 0.19;
+
+    for (int i = 0; i < numDots; i++) {
+      double angle = (i * 2 * math.pi) / numDots;
+      double dx = rx * math.cos(angle);
+      double dy = ry * math.sin(angle);
+      canvas.drawOval(
+        Rect.fromCenter(
+          center: Offset(dx, dy),
+          width: size.width * 0.11,
+          height: size.height * 0.075,
+        ),
+        whiteDotPaint,
+      );
+    }
+    canvas.restore();
+
+    // 5. Reflejo cristalino superior (efecto 3D del logo)
+    final Paint glossPaint = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [Colors.white.withOpacity(0.35), Colors.white.withOpacity(0.0)],
+      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height * 0.45));
+
+    canvas.drawOval(
+      Rect.fromLTWH(
+        size.width * 0.12,
+        size.height * 0.04,
+        size.width * 0.76,
+        size.height * 0.38,
+      ),
+      glossPaint,
+    );
+
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+// ============================================================================
+// PANTALLA DE INICIO DE SESIÓN (LOGIN CON LOGO Y COLORES N° 9002)
 // ============================================================================
 class PantallaLogin extends StatefulWidget {
   const PantallaLogin({super.key});
@@ -118,7 +250,7 @@ class _PantallaLoginState extends State<PantallaLogin> {
         final err = json.decode(res.body)['error'] ?? 'Error al ingresar';
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(err), backgroundColor: Colors.red),
+            SnackBar(content: Text(err), backgroundColor: kRojoLogo),
           );
         }
       }
@@ -140,95 +272,114 @@ class _PantallaLoginState extends State<PantallaLogin> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF153654),
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: Card(
-            elevation: 8,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Container(
-              constraints: const BoxConstraints(maxWidth: 400),
-              padding: const EdgeInsets.all(32.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const CircleAvatar(
-                    radius: 36,
-                    backgroundColor: Color(0xFF1F4E78),
-                    child: Icon(Icons.school, size: 40, color: Colors.white),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Sistema Virtual N° 9002',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1F4E78),
+      backgroundColor: kNegroLogo,
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [kNegroLogo, Color(0xFF2B0909), kNegroLogo],
+          ),
+        ),
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24.0),
+            child: Card(
+              elevation: 12,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+                side: const BorderSide(color: kRojoLogo, width: 1.5),
+              ),
+              child: Container(
+                constraints: const BoxConstraints(maxWidth: 400),
+                padding: const EdgeInsets.all(32.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // LOGO OFICIAL N° 9002 EN EL INICIO
+                    const LogoSistema9002(size: 96),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Sistema Virtual N° 9002',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: kNegroLogo,
+                      ),
+                      textAlign: TextAlign.center,
                     ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const Text(
-                    'Plataforma de Seguimiento por Sedes',
-                    style: TextStyle(fontSize: 13, color: Colors.grey),
-                  ),
-                  const SizedBox(height: 28),
-                  TextField(
-                    controller: _userCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Usuario',
-                      prefixIcon: Icon(Icons.person_outline),
-                      border: OutlineInputBorder(),
+                    const Text(
+                      'Gestión Académica y Seguimiento por Sedes',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: kRojoLogo,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      textAlign: TextAlign.center,
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: _passCtrl,
-                    obscureText: _ocultarPass,
-                    onSubmitted: (_) => _iniciarSesion(),
-                    decoration: InputDecoration(
-                      labelText: 'Contraseña',
-                      prefixIcon: const Icon(Icons.lock_outline),
-                      border: const OutlineInputBorder(),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _ocultarPass
-                              ? Icons.visibility_off
-                              : Icons.visibility,
+                    const SizedBox(height: 28),
+                    TextField(
+                      controller: _userCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Usuario',
+                        prefixIcon: Icon(
+                          Icons.person_outline,
+                          color: kRojoLogo,
                         ),
-                        onPressed: () =>
-                            setState(() => _ocultarPass = !_ocultarPass),
+                        border: OutlineInputBorder(),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF1F4E78),
-                        foregroundColor: Colors.white,
-                      ),
-                      onPressed: _cargando ? null : _iniciarSesion,
-                      icon: _cargando
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2,
-                              ),
-                            )
-                          : const Icon(Icons.login),
-                      label: Text(
-                        _cargando ? 'Verificando...' : 'Ingresar al Sistema',
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: _passCtrl,
+                      obscureText: _ocultarPass,
+                      onSubmitted: (_) => _iniciarSesion(),
+                      decoration: InputDecoration(
+                        labelText: 'Contraseña',
+                        prefixIcon: const Icon(
+                          Icons.lock_outline,
+                          color: kRojoLogo,
+                        ),
+                        border: const OutlineInputBorder(),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _ocultarPass
+                                ? Icons.visibility_off
+                                : Icons.visibility,
+                          ),
+                          onPressed: () =>
+                              setState(() => _ocultarPass = !_ocultarPass),
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: kRojoLogo,
+                          foregroundColor: Colors.white,
+                        ),
+                        onPressed: _cargando ? null : _iniciarSesion,
+                        icon: _cargando
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.login),
+                        label: Text(
+                          _cargando ? 'Verificando...' : 'Ingresar al Sistema',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -239,7 +390,7 @@ class _PantallaLoginState extends State<PantallaLogin> {
 }
 
 // ============================================================================
-// ESTRUCTURA PRINCIPAL: BLOQUEA SEDE Y MÓDULOS + BOTÓN DE SALIR / DESLOGUEARSE
+// ESTRUCTURA PRINCIPAL CON BARRA NEGRA/ROJA Y LOGO N° 9002
 // ============================================================================
 class PantallaPrincipal extends StatefulWidget {
   final Map<String, dynamic> usuarioActual;
@@ -306,7 +457,7 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
               ),
               ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
+                  backgroundColor: kRojoLogo,
                   foregroundColor: Colors.white,
                 ),
                 onPressed: () => Navigator.pop(ctx, true),
@@ -368,17 +519,23 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
 
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1F4E78),
+        backgroundColor: kNegroLogo,
         foregroundColor: Colors.white,
+        leading: const Padding(
+          padding: EdgeInsets.all(8.0),
+          child: LogoSistema9002(size: 36),
+        ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              _esSuperAdmin ? 'Admin General' : 'Sede: $_sedeActual',
+              _esSuperAdmin
+                  ? 'SVFD N° 9002 - Admin General'
+                  : 'SVFD N° 9002 - Sede $_sedeActual',
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
             ),
             Text(
-              'Usuario: ${widget.usuarioActual['nombre_completo']}',
+              'Facilitador: ${widget.usuarioActual['nombre_completo']}',
               style: const TextStyle(fontSize: 11, color: Colors.white70),
             ),
           ],
@@ -397,7 +554,7 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
               margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
               decoration: BoxDecoration(
-                color: Colors.amber.shade800,
+                color: kRojoLogo,
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Row(
@@ -414,7 +571,6 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
                 ],
               ),
             ),
-
           _chipDropdown<int>(
             value: _anioActual,
             items: _aniosDisponibles
@@ -455,12 +611,11 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
                 .toList(),
             onChanged: (v) => setState(() => _orientacionActual = v!),
           ),
-          // BOTÓN DE SALIR / DESLOGUEARSE BIEN VISIBLE EN LA BARRA SUPERIOR
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 6.0),
             child: ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red.shade700,
+                backgroundColor: kRojoLogo,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 10,
@@ -488,7 +643,8 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
               onDestinationSelected: (int index) =>
                   setState(() => _indiceSeleccionado = index),
               extended: true,
-              backgroundColor: const Color(0xFF153654),
+              backgroundColor: kCarbonLogo,
+              indicatorColor: kRojoLogo,
               unselectedIconTheme: const IconThemeData(color: Colors.white70),
               unselectedLabelTextStyle: const TextStyle(color: Colors.white70),
               selectedIconTheme: const IconThemeData(color: Colors.white),
@@ -503,11 +659,11 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
                     padding: const EdgeInsets.only(bottom: 20.0),
                     child: OutlinedButton.icon(
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.amberAccent,
-                        side: const BorderSide(color: Colors.amberAccent),
+                        foregroundColor: Colors.white,
+                        side: const BorderSide(color: kRojoLogo),
                       ),
                       onPressed: _confirmarCerrarSesion,
-                      icon: const Icon(Icons.logout),
+                      icon: const Icon(Icons.logout, color: kRojoLogo),
                       label: const Text('Cerrar Sesión'),
                     ),
                   ),
@@ -555,8 +711,8 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
               currentIndex: _indiceSeleccionado,
               onTap: (int index) => setState(() => _indiceSeleccionado = index),
               type: BottomNavigationBarType.fixed,
-              backgroundColor: const Color(0xFF1F4E78),
-              selectedItemColor: Colors.white,
+              backgroundColor: kNegroLogo,
+              selectedItemColor: kNaranjaLogo,
               unselectedItemColor: Colors.white60,
               items: [
                 const BottomNavigationBarItem(
@@ -597,11 +753,12 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
       decoration: BoxDecoration(
         color: Colors.white12,
         borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: Colors.white24, width: 0.5),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<T>(
           value: value,
-          dropdownColor: const Color(0xFF1F4E78),
+          dropdownColor: kCarbonLogo,
           style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
@@ -609,7 +766,7 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
           ),
           icon: const Icon(
             Icons.arrow_drop_down,
-            color: Colors.white,
+            color: kNaranjaLogo,
             size: 16,
           ),
           items: items,
@@ -655,7 +812,6 @@ class _PantallaUsuariosSedesState extends State<PantallaUsuariosSedes> {
     }
   }
 
-  // Cambiar de forma instantánea si pagó o no pagó el alquiler (Habilitar / Deshabilitar)
   Future<void> _cambiarEstadoPago(dynamic u, bool nuevoEstado) async {
     if (u['username'] == 'admin' && !nuevoEstado) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -670,7 +826,6 @@ class _PantallaUsuariosSedesState extends State<PantallaUsuariosSedes> {
     }
 
     try {
-      // Actualizamos primero con PUT (si actualizaste server.js) y como respaldo con POST
       final bodyData = json.encode({
         'username': u['username'],
         'password': u['password'],
@@ -705,7 +860,7 @@ class _PantallaUsuariosSedesState extends State<PantallaUsuariosSedes> {
                     ? '✅ Cuenta de ${u['nombre_completo']} HABILITADA'
                     : '⛔ Cuenta de ${u['nombre_completo']} SUSPENDIDA por falta de pago',
               ),
-              backgroundColor: nuevoEstado ? Colors.green : Colors.red,
+              backgroundColor: nuevoEstado ? Colors.green : kRojoLogo,
               duration: const Duration(seconds: 2),
             ),
           );
@@ -716,7 +871,6 @@ class _PantallaUsuariosSedesState extends State<PantallaUsuariosSedes> {
     }
   }
 
-  // Abrir ventana al hacer clic en un usuario para editarlo o crear uno nuevo
   void _abrirFormularioUsuario({dynamic usuarioExistente}) {
     bool esEdicion = usuarioExistente != null;
     TextEditingController userCtrl = TextEditingController(
@@ -761,14 +915,13 @@ class _PantallaUsuariosSedesState extends State<PantallaUsuariosSedes> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Banner rápido de estado de pago arriba del todo
                   Container(
                     margin: const EdgeInsets.only(bottom: 14),
                     decoration: BoxDecoration(
                       color: activo ? Colors.green.shade50 : Colors.red.shade50,
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                        color: activo ? Colors.green : Colors.red,
+                        color: activo ? Colors.green : kRojoLogo,
                       ),
                     ),
                     child: SwitchListTile(
@@ -779,9 +932,7 @@ class _PantallaUsuariosSedesState extends State<PantallaUsuariosSedes> {
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 13,
-                          color: activo
-                              ? Colors.green.shade800
-                              : Colors.red.shade800,
+                          color: activo ? Colors.green.shade800 : kRojoLogo,
                         ),
                       ),
                       subtitle: Text(
@@ -833,6 +984,7 @@ class _PantallaUsuariosSedesState extends State<PantallaUsuariosSedes> {
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
                     value: rol,
+                    isExpanded: true,
                     decoration: const InputDecoration(
                       labelText: 'Tipo de Cuenta',
                       border: OutlineInputBorder(),
@@ -843,11 +995,15 @@ class _PantallaUsuariosSedesState extends State<PantallaUsuariosSedes> {
                         value: 'facilitador',
                         child: Text(
                           'Facilitador de Sede (Aislado por ciudad y módulos)',
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       DropdownMenuItem(
                         value: 'admin',
-                        child: Text('Super Administrador (Acceso Total)'),
+                        child: Text(
+                          'Super Administrador (Acceso Total)',
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                     ],
                     onChanged: (usuarioExistente?['username'] == 'admin')
@@ -858,6 +1014,7 @@ class _PantallaUsuariosSedesState extends State<PantallaUsuariosSedes> {
                   if (rol != 'admin') ...[
                     DropdownButtonFormField<String>(
                       value: sede,
+                      isExpanded: true,
                       decoration: const InputDecoration(
                         labelText: 'Localidad / Sede Asignada',
                         border: OutlineInputBorder(),
@@ -865,7 +1022,10 @@ class _PantallaUsuariosSedesState extends State<PantallaUsuariosSedes> {
                       ),
                       items: SEDES_OFICIALES
                           .map(
-                            (s) => DropdownMenuItem(value: s, child: Text(s)),
+                            (s) => DropdownMenuItem(
+                              value: s,
+                              child: Text(s, overflow: TextOverflow.ellipsis),
+                            ),
                           )
                           .toList(),
                       onChanged: (v) => setStateModal(() => sede = v!),
@@ -886,7 +1046,7 @@ class _PantallaUsuariosSedesState extends State<PantallaUsuariosSedes> {
                         return FilterChip(
                           label: Text('Módulo $m'),
                           selected: marcado,
-                          selectedColor: Colors.blue.shade200,
+                          selectedColor: kRojoLogo.withOpacity(0.25),
                           onSelected: (val) {
                             setStateModal(() {
                               if (val) {
@@ -912,7 +1072,7 @@ class _PantallaUsuariosSedesState extends State<PantallaUsuariosSedes> {
             ),
             ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1F4E78),
+                backgroundColor: kRojoLogo,
                 foregroundColor: Colors.white,
               ),
               onPressed: () async {
@@ -983,12 +1143,12 @@ class _PantallaUsuariosSedesState extends State<PantallaUsuariosSedes> {
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF1F4E78),
+                  color: kNegroLogo,
                 ),
               ),
               ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1F4E78),
+                  backgroundColor: kRojoLogo,
                   foregroundColor: Colors.white,
                 ),
                 onPressed: () => _abrirFormularioUsuario(),
@@ -1019,15 +1179,12 @@ class _PantallaUsuariosSedesState extends State<PantallaUsuariosSedes> {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
                           side: BorderSide(
-                            color: activo
-                                ? Colors.transparent
-                                : Colors.red.shade300,
+                            color: activo ? Colors.transparent : kRojoLogo,
                             width: 1.5,
                           ),
                         ),
                         child: InkWell(
                           borderRadius: BorderRadius.circular(10),
-                          // CLICK DIRECTO EN LA TARJETA -> ABRE EDICIÓN DEL USUARIO
                           onTap: () =>
                               _abrirFormularioUsuario(usuarioExistente: u),
                           child: Padding(
@@ -1039,8 +1196,8 @@ class _PantallaUsuariosSedesState extends State<PantallaUsuariosSedes> {
                               children: [
                                 CircleAvatar(
                                   backgroundColor: activo
-                                      ? const Color(0xFF1F4E78)
-                                      : Colors.red.shade700,
+                                      ? kNegroLogo
+                                      : kRojoLogo,
                                   child: Icon(
                                     u['rol'] == 'admin'
                                         ? Icons.security
@@ -1115,7 +1272,7 @@ class _PantallaUsuariosSedesState extends State<PantallaUsuariosSedes> {
                                             '📍 Sede: ${u['sede']}',
                                             style: const TextStyle(
                                               fontSize: 12,
-                                              color: Color(0xFF1F4E78),
+                                              color: kRojoLogo,
                                               fontWeight: FontWeight.bold,
                                             ),
                                           ),
@@ -1131,14 +1288,13 @@ class _PantallaUsuariosSedesState extends State<PantallaUsuariosSedes> {
                                     ],
                                   ),
                                 ),
-                                // INTERRUPTOR RÁPIDO PARA HABILITAR / DESHABILITAR SI NO PAGÓ
                                 Column(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Switch(
                                       value: activo,
                                       activeColor: Colors.green,
-                                      inactiveThumbColor: Colors.red,
+                                      inactiveThumbColor: kRojoLogo,
                                       onChanged: esAdminPpal
                                           ? null
                                           : (val) => _cambiarEstadoPago(u, val),
@@ -1149,7 +1305,7 @@ class _PantallaUsuariosSedesState extends State<PantallaUsuariosSedes> {
                                         fontSize: 10,
                                         color: activo
                                             ? Colors.green.shade700
-                                            : Colors.red,
+                                            : kRojoLogo,
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
@@ -1160,7 +1316,7 @@ class _PantallaUsuariosSedesState extends State<PantallaUsuariosSedes> {
                                   tooltip: 'Editar Usuario',
                                   icon: const Icon(
                                     Icons.edit_outlined,
-                                    color: Color(0xFF1F4E78),
+                                    color: kNegroLogo,
                                   ),
                                   onPressed: () => _abrirFormularioUsuario(
                                     usuarioExistente: u,
@@ -1171,7 +1327,7 @@ class _PantallaUsuariosSedesState extends State<PantallaUsuariosSedes> {
                                     tooltip: 'Eliminar Cuenta',
                                     icon: const Icon(
                                       Icons.delete_outline,
-                                      color: Colors.red,
+                                      color: kRojoLogo,
                                     ),
                                     onPressed: () async {
                                       bool conf =
@@ -1182,7 +1338,7 @@ class _PantallaUsuariosSedesState extends State<PantallaUsuariosSedes> {
                                                 'Eliminar Usuario',
                                               ),
                                               content: Text(
-                                                '¿Seguro que querés eliminar la cuenta de ${u['nombre_completo']}? (Si solo se atrasó en el pago, te conviene apagar su interruptor para suspenderlo).',
+                                                '¿Seguro que querés eliminar la cuenta de ${u['nombre_completo']}?',
                                               ),
                                               actions: [
                                                 TextButton(
@@ -1194,7 +1350,7 @@ class _PantallaUsuariosSedesState extends State<PantallaUsuariosSedes> {
                                                   style:
                                                       ElevatedButton.styleFrom(
                                                         backgroundColor:
-                                                            Colors.red,
+                                                            kRojoLogo,
                                                         foregroundColor:
                                                             Colors.white,
                                                       ),
@@ -1231,7 +1387,7 @@ class _PantallaUsuariosSedesState extends State<PantallaUsuariosSedes> {
 }
 
 // ============================================================================
-// PANTALLA 1: ALUMNOS (AISLADOS POR SEDE)
+// PANTALLA 1: ALUMNOS (CON PDF HORIZONTAL Y NOMBRES VISIBLES)
 // ============================================================================
 class PantallaAlumnos extends StatefulWidget {
   final String sede;
@@ -1341,7 +1497,7 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 18,
-                      color: Color(0xFF1F4E78),
+                      color: kNegroLogo,
                     ),
                   ),
                   Text(
@@ -1420,7 +1576,7 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
                                 'Seguimiento de Alumno Libre (Para Recursar):',
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.red,
+                                  color: kRojoLogo,
                                   fontSize: 13,
                                 ),
                               ),
@@ -1540,7 +1696,7 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 13,
-                          color: Color(0xFF1F4E78),
+                          color: kNegroLogo,
                         ),
                       ),
                       const SizedBox(height: 6),
@@ -1630,6 +1786,7 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
     );
   }
 
+  // EXPORTAR PDF DE CONDICIÓN EN HOJA A4 HORIZONTAL (LANDSCAPE) CON NOMBRES CLAROS
   Future<void> _exportarListadoPDF(String condicionFiltro) async {
     List<dynamic> filtrados = alumnos.where((a) {
       if (condicionFiltro == 'Todos') return true;
@@ -1638,41 +1795,61 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
     }).toList();
 
     final pdf = pw.Document();
+    final formatoHorizontal = PdfPageFormat.a4.landscape;
+
     pdf.addPage(
       pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
+        pageTheme: pw.PageTheme(
+          pageFormat: formatoHorizontal,
+          orientation: pw.PageOrientation.landscape,
+          margin: const pw.EdgeInsets.all(24),
+        ),
         build: (pw.Context context) => [
           pw.Header(
             level: 0,
-            child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
+            child: pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               children: [
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(
+                      'SISTEMA VIRTUAL N° 9002 - SEDE ${widget.sede.toUpperCase()}',
+                      style: pw.TextStyle(
+                        fontSize: 16,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
+                    pw.Text(
+                      'Nómina de Alumnos (${condicionFiltro.toUpperCase()}) | Año: ${widget.anio} - ${widget.periodo} | Módulo ${widget.modulo} (${widget.orientacion})',
+                      style: const pw.TextStyle(fontSize: 11),
+                    ),
+                  ],
+                ),
                 pw.Text(
-                  'SEDE ${widget.sede.toUpperCase()} - ALUMNOS: ${condicionFiltro.toUpperCase()}',
+                  'Total: ${filtrados.length}',
                   style: pw.TextStyle(
-                    fontSize: 16,
+                    fontSize: 12,
                     fontWeight: pw.FontWeight.bold,
                   ),
                 ),
-                pw.Text(
-                  'Año: ${widget.anio} | ${widget.periodo} | Módulo ${widget.modulo} - Orientación: ${widget.orientacion}',
-                  style: const pw.TextStyle(fontSize: 11),
-                ),
-                pw.SizedBox(height: 8),
               ],
             ),
           ),
+          pw.SizedBox(height: 8),
           pw.TableHelper.fromTextArray(
             headers: [
-              'Apellido y Nombre',
+              'N°',
+              'Apellido y Nombre del Alumno',
               'DNI',
               'Condición',
-              'Debe Mód.',
-              'Observaciones',
+              'Módulos Adeudados',
+              'Observaciones / Estado',
             ],
-            data: filtrados.map((a) {
+            data: List.generate(filtrados.length, (i) {
+              final a = filtrados[i];
               String obs = '';
-              if (a['egresado'] == true) obs = 'EGRESADO ';
+              if (a['egresado'] == true) obs = 'EGRESADO. ';
               if (a['debe_defensa'] == true) obs += 'Debe Defensa. ';
               if (a['condicion'] == 'Libre') {
                 obs += (a['notificado_libre'] == true
@@ -1683,27 +1860,44 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
                     : 'Sin Nota.');
               }
               return [
-                a['nombre_completo'],
-                a['dni'].toString(),
-                a['condicion'] ?? 'Cursando',
+                '${i + 1}',
+                (a['nombre_completo'] ?? '').toString(),
+                (a['dni'] ?? '').toString(),
+                (a['condicion'] ?? 'Cursando').toString(),
                 (a['modulos_adeudados']?.toString().isNotEmpty ?? false)
                     ? 'Mód: ${a['modulos_adeudados']}'
                     : 'Ninguno',
                 obs,
               ];
-            }).toList(),
+            }),
             headerStyle: pw.TextStyle(
               fontWeight: pw.FontWeight.bold,
               fontSize: 10,
+              color: PdfColors.white,
             ),
-            cellStyle: const pw.TextStyle(fontSize: 9),
+            headerDecoration: const pw.BoxDecoration(
+              color: PdfColor.fromInt(0xFFD32F2F),
+            ),
+            cellStyle: const pw.TextStyle(
+              fontSize: 9.5,
+              color: PdfColors.black,
+            ),
+            columnWidths: {
+              0: const pw.FlexColumnWidth(0.5),
+              1: const pw.FlexColumnWidth(3.0),
+              2: const pw.FlexColumnWidth(1.2),
+              3: const pw.FlexColumnWidth(1.3),
+              4: const pw.FlexColumnWidth(1.5),
+              5: const pw.FlexColumnWidth(2.5),
+            },
           ),
         ],
       ),
     );
     await Printing.layoutPdf(
-      onLayout: (format) async => pdf.save(),
-      name: 'Listado_${widget.sede}_${condicionFiltro}.pdf',
+      format: formatoHorizontal,
+      onLayout: (_) async => pdf.save(),
+      name: 'Nomina_${widget.sede}_${condicionFiltro}.pdf',
     );
   }
 
@@ -1711,7 +1905,7 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Exportar PDF (${widget.sede})'),
+        title: Text('Exportar PDF Horizontal (${widget.sede})'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: ['Promocionado', 'Regular', 'Libre', 'Egresados', 'Todos']
@@ -1814,6 +2008,7 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
                           width: 110,
                           child: DropdownButtonFormField<int>(
                             value: anioDestino,
+                            isExpanded: true,
                             decoration: const InputDecoration(
                               labelText: 'Año',
                               border: OutlineInputBorder(),
@@ -1835,6 +2030,7 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
                           width: 140,
                           child: DropdownButtonFormField<String>(
                             value: periodoDestino,
+                            isExpanded: true,
                             decoration: const InputDecoration(
                               labelText: 'Período',
                               border: OutlineInputBorder(),
@@ -1856,6 +2052,7 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
                           width: 120,
                           child: DropdownButtonFormField<int>(
                             value: moduloDestino,
+                            isExpanded: true,
                             decoration: const InputDecoration(
                               labelText: 'Módulo',
                               border: OutlineInputBorder(),
@@ -1900,7 +2097,7 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
               ),
               ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1F4E78),
+                  backgroundColor: kRojoLogo,
                   foregroundColor: Colors.white,
                 ),
                 onPressed: candidatos.isEmpty
@@ -2013,7 +2210,7 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
               children: [
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1F4E78),
+                    backgroundColor: kNegroLogo,
                     foregroundColor: Colors.white,
                   ),
                   onPressed: () async {
@@ -2107,6 +2304,10 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
             child: const Text('Cancelar'),
           ),
           ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: kRojoLogo,
+              foregroundColor: Colors.white,
+            ),
             onPressed: () async {
               if (nombreCtrl.text.isEmpty || dniCtrl.text.isEmpty) return;
               await http.post(
@@ -2320,6 +2521,10 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
               child: const Text('Cerrar'),
             ),
             ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: kNegroLogo,
+                foregroundColor: Colors.white,
+              ),
               onPressed: () async {
                 final pdf = pw.Document();
                 pdf.addPage(
@@ -2389,9 +2594,9 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
   Color _colorCondicion(String? cond) {
     if (cond == 'Promocionado') return Colors.green.shade700;
     if (cond == 'Regular') return Colors.blue.shade700;
-    if (cond == 'Libre') return Colors.red.shade700;
+    if (cond == 'Libre') return kRojoLogo;
     if (cond == 'Egresados') return Colors.teal.shade700;
-    return Colors.blueGrey;
+    return kCarbonLogo;
   }
 
   @override
@@ -2418,7 +2623,7 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
                 style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF1F4E78),
+                  color: kNegroLogo,
                 ),
               ),
               Wrap(
@@ -2427,7 +2632,7 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
                 children: [
                   ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1F4E78),
+                      backgroundColor: kRojoLogo,
                       foregroundColor: Colors.white,
                     ),
                     onPressed: _mostrarDialogoNuevoAlumno,
@@ -2436,7 +2641,7 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
                   ),
                   ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.teal,
+                      backgroundColor: kNegroLogo,
                       foregroundColor: Colors.white,
                     ),
                     onPressed: _mostrarDialogoCargaMasiva,
@@ -2484,6 +2689,7 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
                       child: FilterChip(
                         label: Text(f, style: const TextStyle(fontSize: 12)),
                         selected: sel,
+                        selectedColor: kRojoLogo.withOpacity(0.2),
                         onSelected: (_) => setState(() => _filtroCondicion = f),
                       ),
                     );
@@ -2615,7 +2821,7 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
                                               al['presento_nota_recursar'] ==
                                                       true
                                                   ? Colors.green
-                                                  : Colors.red,
+                                                  : kRojoLogo,
                                             ),
                                         ],
                                       ),
@@ -2626,7 +2832,7 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
                                   tooltip: 'Editar Legajo / Papeles',
                                   icon: const Icon(
                                     Icons.folder_shared_outlined,
-                                    color: Color(0xFF1F4E78),
+                                    color: kNegroLogo,
                                   ),
                                   onPressed: () => _mostrarFichaLegajo(al),
                                 ),
@@ -2634,7 +2840,7 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
                                   tooltip: 'Quitar de este período',
                                   icon: const Icon(
                                     Icons.delete_outline,
-                                    color: Colors.red,
+                                    color: kRojoLogo,
                                   ),
                                   onPressed: () async {
                                     await http.delete(
@@ -2679,7 +2885,7 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
 }
 
 // ============================================================================
-// PANTALLA 2: GRUPOS Y PROYECTOS (AISLADOS POR SEDE)
+// PANTALLA 2: GRUPOS Y PROYECTOS (SIN OVERFLOW HORIZONTAL)
 // ============================================================================
 class PantallaGrupos extends StatefulWidget {
   final String sede;
@@ -2751,6 +2957,10 @@ class _PantallaGruposState extends State<PantallaGrupos> {
             child: const Text('Cancelar'),
           ),
           ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: kRojoLogo,
+              foregroundColor: Colors.white,
+            ),
             onPressed: () async {
               if (nombreCtrl.text.isEmpty) return;
               Navigator.pop(context);
@@ -2814,9 +3024,14 @@ class _PantallaGruposState extends State<PantallaGrupos> {
             title: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Administrar: ${grupoActualizado['nombre_grupo']}'),
+                Flexible(
+                  child: Text(
+                    'Administrar: ${grupoActualizado['nombre_grupo']}',
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
                 IconButton(
-                  icon: const Icon(Icons.delete_forever, color: Colors.red),
+                  icon: const Icon(Icons.delete_forever, color: kRojoLogo),
                   onPressed: () async {
                     Navigator.pop(context);
                     await http.delete(Uri.parse('$baseUrl/grupos/$grupoId'));
@@ -2861,6 +3076,10 @@ class _PantallaGruposState extends State<PantallaGrupos> {
                         ),
                         const SizedBox(width: 8),
                         ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: kNegroLogo,
+                            foregroundColor: Colors.white,
+                          ),
                           onPressed: () async {
                             if (alumnoSeleccionadoId != null) {
                               await http.post(
@@ -2888,7 +3107,7 @@ class _PantallaGruposState extends State<PantallaGrupos> {
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                         trailing: IconButton(
-                          icon: const Icon(Icons.close, color: Colors.red),
+                          icon: const Icon(Icons.close, color: kRojoLogo),
                           onPressed: () async {
                             await http.delete(
                               Uri.parse(
@@ -2916,9 +3135,10 @@ class _PantallaGruposState extends State<PantallaGrupos> {
                       runSpacing: 10,
                       children: [
                         SizedBox(
-                          width: 140,
+                          width: 170,
                           child: DropdownButtonFormField<String>(
                             value: i1,
+                            isExpanded: true,
                             decoration: const InputDecoration(
                               labelText: 'Instancia 1',
                               border: OutlineInputBorder(),
@@ -2928,7 +3148,10 @@ class _PantallaGruposState extends State<PantallaGrupos> {
                                 .map(
                                   (o) => DropdownMenuItem(
                                     value: o,
-                                    child: Text(o),
+                                    child: Text(
+                                      o,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                                   ),
                                 )
                                 .toList(),
@@ -2936,9 +3159,10 @@ class _PantallaGruposState extends State<PantallaGrupos> {
                           ),
                         ),
                         SizedBox(
-                          width: 140,
+                          width: 170,
                           child: DropdownButtonFormField<String>(
                             value: i2,
+                            isExpanded: true,
                             decoration: const InputDecoration(
                               labelText: 'Instancia 2',
                               border: OutlineInputBorder(),
@@ -2948,7 +3172,10 @@ class _PantallaGruposState extends State<PantallaGrupos> {
                                 .map(
                                   (o) => DropdownMenuItem(
                                     value: o,
-                                    child: Text(o),
+                                    child: Text(
+                                      o,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                                   ),
                                 )
                                 .toList(),
@@ -2956,9 +3183,10 @@ class _PantallaGruposState extends State<PantallaGrupos> {
                           ),
                         ),
                         SizedBox(
-                          width: 140,
+                          width: 170,
                           child: DropdownButtonFormField<String>(
                             value: i3,
+                            isExpanded: true,
                             decoration: const InputDecoration(
                               labelText: 'Instancia 3',
                               border: OutlineInputBorder(),
@@ -2968,7 +3196,10 @@ class _PantallaGruposState extends State<PantallaGrupos> {
                                 .map(
                                   (o) => DropdownMenuItem(
                                     value: o,
-                                    child: Text(o),
+                                    child: Text(
+                                      o,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                                   ),
                                 )
                                 .toList(),
@@ -2976,9 +3207,10 @@ class _PantallaGruposState extends State<PantallaGrupos> {
                           ),
                         ),
                         SizedBox(
-                          width: 140,
+                          width: 170,
                           child: DropdownButtonFormField<String>(
                             value: iRec,
+                            isExpanded: true,
                             decoration: const InputDecoration(
                               labelText: 'Recuperatorio',
                               border: OutlineInputBorder(),
@@ -2994,7 +3226,10 @@ class _PantallaGruposState extends State<PantallaGrupos> {
                                     .map(
                                       (o) => DropdownMenuItem(
                                         value: o,
-                                        child: Text(o),
+                                        child: Text(
+                                          o,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
                                       ),
                                     )
                                     .toList(),
@@ -3002,9 +3237,10 @@ class _PantallaGruposState extends State<PantallaGrupos> {
                           ),
                         ),
                         SizedBox(
-                          width: 140,
+                          width: 170,
                           child: DropdownButtonFormField<String>(
                             value: def,
+                            isExpanded: true,
                             decoration: const InputDecoration(
                               labelText: 'Defensa Final',
                               border: OutlineInputBorder(),
@@ -3014,7 +3250,10 @@ class _PantallaGruposState extends State<PantallaGrupos> {
                                 .map(
                                   (o) => DropdownMenuItem(
                                     value: o,
-                                    child: Text(o),
+                                    child: Text(
+                                      o,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                                   ),
                                 )
                                 .toList(),
@@ -3022,7 +3261,7 @@ class _PantallaGruposState extends State<PantallaGrupos> {
                           ),
                         ),
                         SizedBox(
-                          width: 140,
+                          width: 170,
                           child: TextField(
                             controller: notaFinalCtrl,
                             decoration: const InputDecoration(
@@ -3100,7 +3339,7 @@ class _PantallaGruposState extends State<PantallaGrupos> {
                 style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF1F4E78),
+                  color: kNegroLogo,
                 ),
               ),
               ElevatedButton.icon(
@@ -3108,7 +3347,7 @@ class _PantallaGruposState extends State<PantallaGrupos> {
                 icon: const Icon(Icons.add),
                 label: const Text('Crear Grupo'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1F4E78),
+                  backgroundColor: kRojoLogo,
                   foregroundColor: Colors.white,
                 ),
               ),
@@ -3170,6 +3409,10 @@ class _PantallaGruposState extends State<PantallaGrupos> {
                               SizedBox(
                                 width: double.infinity,
                                 child: ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: kNegroLogo,
+                                    foregroundColor: Colors.white,
+                                  ),
                                   onPressed: () =>
                                       abrirAdministradorGrupo(grupo),
                                   child: const Text('Administrar'),
@@ -3189,7 +3432,7 @@ class _PantallaGruposState extends State<PantallaGrupos> {
 }
 
 // ============================================================================
-// PANTALLA 3: SEGUIMIENTO Y BOT (AISLADO POR SEDE)
+// PANTALLA 3: SEGUIMIENTO, PLANILLA SEMANAL, PDF HORIZONTAL Y EXPORTACIÓN A WORD
 // ============================================================================
 class PantallaSeguimiento extends StatefulWidget {
   final String sede;
@@ -3215,7 +3458,19 @@ class _PantallaSeguimientoState extends State<PantallaSeguimiento> {
   bool cargando = true;
   bool botEjecutando = false;
   String progresoBot = '';
+  bool _verComoPlanilla = false;
   Timer? _timerEstado;
+
+  final List<String> _semanasOrden = [
+    'S02',
+    'S03',
+    'S04',
+    'S07',
+    'S08',
+    'S11',
+    'S12',
+    'Evaluaciones',
+  ];
 
   @override
   void initState() {
@@ -3247,6 +3502,223 @@ class _PantallaSeguimientoState extends State<PantallaSeguimiento> {
     } catch (e) {
       setState(() => cargando = false);
     }
+  }
+
+  String _obtenerEstadoSemana(dynamic alumnoCursada, String codigoSemana) {
+    final segRaw = alumnoCursada['seguimiento_semanal'];
+    if (segRaw == null) return '-';
+
+    Map<String, dynamic> segMap = {};
+    if (segRaw is String && segRaw.isNotEmpty) {
+      try {
+        segMap = json.decode(segRaw);
+      } catch (_) {}
+    } else if (segRaw is Map) {
+      segMap = Map<String, dynamic>.from(segRaw);
+    }
+
+    if (!segMap.containsKey(codigoSemana)) return '-';
+    final datosSem = segMap[codigoSemana];
+    if (datosSem is! Map) return '-';
+
+    List completas = (datosSem['completas'] as List?) ?? [];
+    List faltan = (datosSem['faltan'] as List?) ?? [];
+
+    if (completas.isEmpty && faltan.isEmpty) return '-';
+    if (faltan.isEmpty) return 'COMPLETA';
+    if (completas.isEmpty) return 'No realizó';
+    return 'Debe: ${faltan.join(", ")}';
+  }
+
+  // 1. EXPORTAR PDF EN HOJA A4 HORIZONTAL (LANDSCAPE) CON NOMBRES VISIBLES
+  Future<void> _exportarPlanillaSeguimientoPDF() async {
+    final pdf = pw.Document();
+    final formatoHorizontal = PdfPageFormat.a4.landscape;
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageTheme: pw.PageTheme(
+          pageFormat: formatoHorizontal,
+          orientation: pw.PageOrientation.landscape,
+          margin: const pw.EdgeInsets.all(18),
+        ),
+        build: (pw.Context context) => [
+          pw.Header(
+            level: 0,
+            child: pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(
+                      'SISTEMA VIRTUAL N° 9002 - PLANILLA DE SEGUIMIENTO MOODLE',
+                      style: pw.TextStyle(
+                        fontSize: 15,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
+                    pw.Text(
+                      'Sede: ${widget.sede} | Módulo ${widget.modulo} (${widget.orientacion}) | ${widget.anio} - ${widget.periodo}',
+                      style: const pw.TextStyle(fontSize: 10.5),
+                    ),
+                  ],
+                ),
+                pw.Text(
+                  'Total Alumnos: ${cursadas.length}',
+                  style: pw.TextStyle(
+                    fontSize: 11,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          pw.SizedBox(height: 6),
+          pw.TableHelper.fromTextArray(
+            headers: [
+              'N°',
+              'Apellido y Nombre del Alumno',
+              'DNI',
+              'Sem. 2',
+              'Sem. 3',
+              'Sem. 4',
+              'Sem. 7',
+              'Sem. 8',
+              'Sem. 11',
+              'Sem. 12',
+              'Eval.',
+            ],
+            data: List.generate(cursadas.length, (index) {
+              final c = cursadas[index];
+              final nombreAlumno = (c['nombre_completo'] ?? 'Sin Nombre')
+                  .toString();
+              final dniAlumno = (c['dni'] ?? '').toString();
+              return [
+                '${index + 1}',
+                nombreAlumno,
+                dniAlumno,
+                ..._semanasOrden.map((sem) => _obtenerEstadoSemana(c, sem)),
+              ];
+            }),
+            headerStyle: pw.TextStyle(
+              fontWeight: pw.FontWeight.bold,
+              fontSize: 8.5,
+              color: PdfColors.white,
+            ),
+            headerDecoration: const pw.BoxDecoration(
+              color: PdfColor.fromInt(0xFFD32F2F),
+            ),
+            cellStyle: const pw.TextStyle(
+              fontSize: 7.5,
+              color: PdfColors.black,
+            ),
+            cellAlignment: pw.Alignment.centerLeft,
+            columnWidths: {
+              0: const pw.FlexColumnWidth(0.5),
+              1: const pw.FlexColumnWidth(2.6),
+              2: const pw.FlexColumnWidth(1.1),
+              3: const pw.FlexColumnWidth(1.1),
+              4: const pw.FlexColumnWidth(1.1),
+              5: const pw.FlexColumnWidth(1.1),
+              6: const pw.FlexColumnWidth(1.1),
+              7: const pw.FlexColumnWidth(1.1),
+              8: const pw.FlexColumnWidth(1.1),
+              9: const pw.FlexColumnWidth(1.1),
+              10: const pw.FlexColumnWidth(1.1),
+            },
+          ),
+        ],
+      ),
+    );
+
+    await Printing.layoutPdf(
+      format: formatoHorizontal,
+      onLayout: (_) async => pdf.save(),
+      name: 'Planilla_Seguimiento_${widget.sede}_Mod${widget.modulo}.pdf',
+    );
+  }
+
+  // 2. EXPORTAR COMO ARCHIVO WORD (.DOC) DIRECTO (CON TABLA HORIZONTAL Y NOMBRES)
+  Future<void> _exportarPlanillaWord() async {
+    StringBuffer filasHtml = StringBuffer();
+    for (int i = 0; i < cursadas.length; i++) {
+      final c = cursadas[i];
+      final nombre = (c['nombre_completo'] ?? '').toString();
+      final dni = (c['dni'] ?? '').toString();
+      filasHtml.write('<tr>');
+      filasHtml.write(
+        '<td style="border:1px solid #333; padding:5px; text-align:center;">${i + 1}</td>',
+      );
+      filasHtml.write(
+        '<td style="border:1px solid #333; padding:5px; font-weight:bold;">$nombre</td>',
+      );
+      filasHtml.write(
+        '<td style="border:1px solid #333; padding:5px;">$dni</td>',
+      );
+      for (final sem in _semanasOrden) {
+        final est = _obtenerEstadoSemana(c, sem);
+        String bg = '#FFFFFF';
+        if (est == 'COMPLETA')
+          bg = '#E8F5E9';
+        else if (est.startsWith('Debe:'))
+          bg = '#FFF3E0';
+        else if (est == 'No realizó')
+          bg = '#FFEBEE';
+        filasHtml.write(
+          '<td style="border:1px solid #333; padding:5px; background-color:$bg; font-size:9pt;">$est</td>',
+        );
+      }
+      filasHtml.write('</tr>');
+    }
+
+    String docWord =
+        '''
+<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+<head>
+<meta charset="utf-8">
+<title>Seguimiento Moodle</title>
+<style>
+  @page Section1 { size: 841.9pt 595.3pt; mso-page-orientation: landscape; margin: 1.5cm; }
+  div.Section1 { page: Section1; }
+  body { font-family: Arial, sans-serif; }
+  table { border-collapse: collapse; width: 100%; }
+</style>
+</head>
+<body>
+<div class="Section1">
+  <h2 style="color:#D32F2F; margin-bottom:2px;">SISTEMA VIRTUAL DE FORMACIÓN A DISTANCIA N° 9002</h2>
+  <p style="margin-top:0; font-size:11pt;"><b>Sede:</b> ${widget.sede} &nbsp;|&nbsp; <b>Módulo:</b> ${widget.modulo} (${widget.orientacion}) &nbsp;|&nbsp; <b>Ciclo:</b> ${widget.anio} - ${widget.periodo}</p>
+  <table>
+    <thead>
+      <tr style="background-color:#141414; color:#FFFFFF; font-weight:bold; font-size:9.5pt;">
+        <th style="border:1px solid #333; padding:6px;">N°</th>
+        <th style="border:1px solid #333; padding:6px;">Apellido y Nombre</th>
+        <th style="border:1px solid #333; padding:6px;">DNI</th>
+        <th style="border:1px solid #333; padding:6px;">Sem. 2</th>
+        <th style="border:1px solid #333; padding:6px;">Sem. 3</th>
+        <th style="border:1px solid #333; padding:6px;">Sem. 4</th>
+        <th style="border:1px solid #333; padding:6px;">Sem. 7</th>
+        <th style="border:1px solid #333; padding:6px;">Sem. 8</th>
+        <th style="border:1px solid #333; padding:6px;">Sem. 11</th>
+        <th style="border:1px solid #333; padding:6px;">Sem. 12</th>
+        <th style="border:1px solid #333; padding:6px;">Eval.</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${filasHtml.toString()}
+    </tbody>
+  </table>
+</div>
+</body>
+</html>
+''';
+
+    final bytes = Uint8List.fromList(utf8.encode(docWord));
+    await Printing.sharePdf(
+      bytes: bytes,
+      filename: 'Seguimiento_${widget.sede}_Mod${widget.modulo}.doc',
+    );
   }
 
   void _abrirSelectorAlumnosBot() {
@@ -3319,7 +3791,7 @@ class _PantallaSeguimientoState extends State<PantallaSeguimiento> {
                 },
                 child: const Text(
                   'Destrabar Bot',
-                  style: TextStyle(color: Colors.red),
+                  style: TextStyle(color: kRojoLogo),
                 ),
               ),
               TextButton(
@@ -3328,7 +3800,7 @@ class _PantallaSeguimientoState extends State<PantallaSeguimiento> {
               ),
               ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.deepPurple,
+                  backgroundColor: kRojoLogo,
                   foregroundColor: Colors.white,
                 ),
                 onPressed: seleccionados.isEmpty
@@ -3429,6 +3901,88 @@ class _PantallaSeguimientoState extends State<PantallaSeguimiento> {
     );
   }
 
+  Widget _construirVistaPlanilla() {
+    return Card(
+      elevation: 2,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.vertical,
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: DataTable(
+            headingRowColor: WidgetStateProperty.all(kNegroLogo),
+            headingTextStyle: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 13,
+            ),
+            columnSpacing: 18,
+            columns: const [
+              DataColumn(label: Text('Apellido y Nombre')),
+              DataColumn(label: Text('Semana 2')),
+              DataColumn(label: Text('Semana 3')),
+              DataColumn(label: Text('Semana 4')),
+              DataColumn(label: Text('Semana 7')),
+              DataColumn(label: Text('Semana 8')),
+              DataColumn(label: Text('Semana 11')),
+              DataColumn(label: Text('Semana 12')),
+              DataColumn(label: Text('Evaluaciones')),
+            ],
+            rows: cursadas.map((c) {
+              return DataRow(
+                cells: [
+                  DataCell(
+                    Text(
+                      c['nombre_completo'],
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                  ..._semanasOrden.map((sem) {
+                    String est = _obtenerEstadoSemana(c, sem);
+                    Color colorTexto = Colors.black87;
+                    Color colorFondo = Colors.transparent;
+                    if (est == 'COMPLETA') {
+                      colorTexto = Colors.green.shade800;
+                      colorFondo = Colors.green.shade50;
+                    } else if (est.startsWith('Debe:')) {
+                      colorTexto = Colors.orange.shade900;
+                      colorFondo = Colors.orange.shade50;
+                    } else if (est == 'No realizó') {
+                      colorTexto = kRojoLogo;
+                      colorFondo = Colors.red.shade50;
+                    }
+                    return DataCell(
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: colorFondo,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          est,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: colorTexto,
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+                ],
+              );
+            }).toList(),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -3447,32 +4001,63 @@ class _PantallaSeguimientoState extends State<PantallaSeguimiento> {
                 style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF1F4E78),
+                  color: kNegroLogo,
                 ),
               ),
               Wrap(
-                spacing: 10,
-                runSpacing: 10,
+                spacing: 8,
+                runSpacing: 8,
                 children: [
                   ElevatedButton.icon(
                     onPressed: _abrirSelectorAlumnosBot,
-                    icon: const Icon(Icons.smart_toy),
+                    icon: const Icon(Icons.smart_toy, size: 18),
                     label: Text(
-                      botEjecutando
-                          ? 'Bot Activo (Opciones)'
-                          : 'Sincronizar Moodle (Elegir)',
+                      botEjecutando ? 'Bot Activo' : 'Sincronizar Moodle',
                     ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.deepPurple,
+                      backgroundColor: kRojoLogo,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: () =>
+                        setState(() => _verComoPlanilla = !_verComoPlanilla),
+                    icon: Icon(
+                      _verComoPlanilla ? Icons.view_agenda : Icons.table_chart,
+                      size: 18,
+                    ),
+                    label: Text(
+                      _verComoPlanilla ? 'Ver Tarjetas' : 'Ver Planilla',
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: kNegroLogo,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: _exportarPlanillaSeguimientoPDF,
+                    icon: const Icon(Icons.picture_as_pdf, size: 18),
+                    label: const Text('PDF Horizontal'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.deepOrange,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: _exportarPlanillaWord,
+                    icon: const Icon(Icons.description, size: 18),
+                    label: const Text('Exportar Word'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue.shade800,
                       foregroundColor: Colors.white,
                     ),
                   ),
                   ElevatedButton.icon(
                     onPressed: copiarParaWhatsApp,
-                    icon: const Icon(Icons.copy),
+                    icon: const Icon(Icons.copy, size: 18),
                     label: const Text('Copiar WhatsApp'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
+                      backgroundColor: Colors.green.shade700,
                       foregroundColor: Colors.white,
                     ),
                   ),
@@ -3485,9 +4070,9 @@ class _PantallaSeguimientoState extends State<PantallaSeguimiento> {
               margin: const EdgeInsets.only(top: 12),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.deepPurple.shade50,
+                color: Colors.red.shade50,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.deepPurple),
+                border: Border.all(color: kRojoLogo),
               ),
               child: Row(
                 children: [
@@ -3495,7 +4080,10 @@ class _PantallaSeguimientoState extends State<PantallaSeguimiento> {
                     const SizedBox(
                       width: 18,
                       height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: kRojoLogo,
+                      ),
                     ),
                   if (botEjecutando) const SizedBox(width: 12),
                   Expanded(
@@ -3503,7 +4091,7 @@ class _PantallaSeguimientoState extends State<PantallaSeguimiento> {
                       progresoBot,
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: Colors.deepPurple,
+                        color: kRojoLogo,
                       ),
                     ),
                   ),
@@ -3515,7 +4103,7 @@ class _PantallaSeguimientoState extends State<PantallaSeguimiento> {
                       },
                       child: const Text(
                         'Detener',
-                        style: TextStyle(color: Colors.red),
+                        style: TextStyle(color: kRojoLogo),
                       ),
                     ),
                   IconButton(
@@ -3525,52 +4113,56 @@ class _PantallaSeguimientoState extends State<PantallaSeguimiento> {
                 ],
               ),
             ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
           cargando
               ? const Expanded(
                   child: Center(child: CircularProgressIndicator()),
                 )
               : Expanded(
-                  child: ListView.builder(
-                    itemCount: cursadas.length,
-                    itemBuilder: (context, index) {
-                      final c = cursadas[index];
-                      final resumen =
-                          (c['resumen_texto'] != null &&
-                              c['resumen_texto'].toString().isNotEmpty)
-                          ? c['resumen_texto']
-                          : 'Sin datos. Tocá "Sincronizar Moodle" para analizar a este alumno.';
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 10),
-                        child: ListTile(
-                          title: Text(
-                            c['nombre_completo'],
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          subtitle: Padding(
-                            padding: const EdgeInsets.only(top: 4.0),
-                            child: Text(
-                              resumen,
-                              style: TextStyle(
-                                color: Colors.grey[800],
-                                height: 1.4,
+                  child: _verComoPlanilla
+                      ? _construirVistaPlanilla()
+                      : ListView.builder(
+                          itemCount: cursadas.length,
+                          itemBuilder: (context, index) {
+                            final c = cursadas[index];
+                            final resumen =
+                                (c['resumen_texto'] != null &&
+                                    c['resumen_texto'].toString().isNotEmpty)
+                                ? c['resumen_texto']
+                                : 'Sin datos. Tocá "Sincronizar Moodle" para analizar a este alumno.';
+                            return Card(
+                              margin: const EdgeInsets.only(bottom: 10),
+                              child: ListTile(
+                                title: Text(
+                                  c['nombre_completo'],
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                subtitle: Padding(
+                                  padding: const EdgeInsets.only(top: 4.0),
+                                  child: Text(
+                                    resumen,
+                                    style: TextStyle(
+                                      color: Colors.grey[800],
+                                      height: 1.4,
+                                    ),
+                                  ),
+                                ),
+                                trailing: IconButton(
+                                  tooltip: 'Sincronizar solo a este alumno',
+                                  icon: const Icon(
+                                    Icons.sync,
+                                    color: kRojoLogo,
+                                  ),
+                                  onPressed: () => _ejecutarBotConSeleccion([
+                                    c['cursada_id'],
+                                  ], forzar: true),
+                                ),
                               ),
-                            ),
-                          ),
-                          trailing: IconButton(
-                            tooltip: 'Sincronizar solo a este alumno',
-                            icon: const Icon(
-                              Icons.sync,
-                              color: Colors.deepPurple,
-                            ),
-                            onPressed: () => _ejecutarBotConSeleccion([
-                              c['cursada_id'],
-                            ], forzar: true),
-                          ),
+                            );
+                          },
                         ),
-                      );
-                    },
-                  ),
                 ),
         ],
       ),
@@ -3729,7 +4321,7 @@ class _PantallaEnlacesState extends State<PantallaEnlaces> {
             style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF1F4E78),
+              color: kNegroLogo,
             ),
           ),
           const SizedBox(height: 10),
@@ -3750,6 +4342,10 @@ class _PantallaEnlacesState extends State<PantallaEnlaces> {
                   ),
                   const SizedBox(width: 10),
                   ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: kNegroLogo,
+                      foregroundColor: Colors.white,
+                    ),
                     onPressed: guardarUrlCalificaciones,
                     child: const Text('Fijar URL'),
                   ),
@@ -3771,6 +4367,7 @@ class _PantallaEnlacesState extends State<PantallaEnlaces> {
                         width: 130,
                         child: DropdownButtonFormField<String>(
                           value: _semanaSeleccionada,
+                          isExpanded: true,
                           decoration: const InputDecoration(
                             labelText: 'Semana',
                             border: OutlineInputBorder(),
@@ -3790,6 +4387,7 @@ class _PantallaEnlacesState extends State<PantallaEnlaces> {
                         width: 170,
                         child: DropdownButtonFormField<String>(
                           value: _materiaSeleccionada,
+                          isExpanded: true,
                           decoration: const InputDecoration(
                             labelText: 'Materia',
                             border: OutlineInputBorder(),
@@ -3806,9 +4404,10 @@ class _PantallaEnlacesState extends State<PantallaEnlaces> {
                         ),
                       ),
                       SizedBox(
-                        width: 250,
+                        width: 260,
                         child: DropdownButtonFormField<String>(
                           value: _tipoActividadSeleccionada,
+                          isExpanded: true,
                           decoration: const InputDecoration(
                             labelText: 'Tipo Actividad',
                             border: OutlineInputBorder(),
@@ -3816,8 +4415,13 @@ class _PantallaEnlacesState extends State<PantallaEnlaces> {
                           ),
                           items: _tiposActividad
                               .map(
-                                (t) =>
-                                    DropdownMenuItem(value: t, child: Text(t)),
+                                (t) => DropdownMenuItem(
+                                  value: t,
+                                  child: Text(
+                                    t,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
                               )
                               .toList(),
                           onChanged: (v) =>
@@ -3846,7 +4450,7 @@ class _PantallaEnlacesState extends State<PantallaEnlaces> {
                       const SizedBox(width: 10),
                       ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF1F4E78),
+                          backgroundColor: kRojoLogo,
                           foregroundColor: Colors.white,
                         ),
                         onPressed: guardarEnlace,
@@ -3886,7 +4490,7 @@ class _PantallaEnlacesState extends State<PantallaEnlaces> {
                                 : enlace['url_actividad'],
                           ),
                           trailing: IconButton(
-                            icon: const Icon(Icons.delete, color: Colors.red),
+                            icon: const Icon(Icons.delete, color: kRojoLogo),
                             onPressed: () async {
                               await http.delete(
                                 Uri.parse(
