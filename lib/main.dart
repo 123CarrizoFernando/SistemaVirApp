@@ -83,7 +83,7 @@ class SistemaAcademicoApp extends StatelessWidget {
 }
 
 // ============================================================================
-// WIDGET DEL LOGO OFICIAL N° 9002 (ESFERA NEGRA 3D, CÍRCULO ROJO, 8 PUNTOS Y LÍNEAS ROJAS)
+// WIDGET DEL LOGO OFICIAL N° 9002
 // ============================================================================
 class LogoSistema9002 extends StatelessWidget {
   final double size;
@@ -105,7 +105,6 @@ class _Logo9002Painter extends CustomPainter {
     final double r = size.width / 2;
     final Offset center = Offset(r, r);
 
-    // 1. Esfera negra 3D con brillo superior
     final Path circlePath = Path()
       ..addOval(Rect.fromCircle(center: center, radius: r));
     canvas.save();
@@ -119,7 +118,6 @@ class _Logo9002Painter extends CustomPainter {
       ).createShader(Rect.fromCircle(center: center, radius: r));
     canvas.drawCircle(center, r, spherePaint);
 
-    // 2. Franjas rojas curvas en la parte inferior izquierda
     final Paint stripePaint = Paint()
       ..color = kRojoLogo
       ..style = PaintingStyle.stroke
@@ -138,7 +136,6 @@ class _Logo9002Painter extends CustomPainter {
       canvas.drawPath(stripe, stripePaint);
     }
 
-    // 3. Óvalo central rojo/naranja inclinado
     canvas.save();
     canvas.translate(size.width * 0.50, size.height * 0.44);
     canvas.rotate(-0.45);
@@ -155,7 +152,6 @@ class _Logo9002Painter extends CustomPainter {
       redCenterPaint,
     );
 
-    // 4. 8 óvalos blancos alrededor del centro
     final Paint whiteDotPaint = Paint()
       ..color = const Color(0xFFEAEAEA)
       ..style = PaintingStyle.fill;
@@ -179,7 +175,6 @@ class _Logo9002Painter extends CustomPainter {
     }
     canvas.restore();
 
-    // 5. Reflejo cristalino superior (efecto 3D del logo)
     final Paint glossPaint = Paint()
       ..shader = LinearGradient(
         begin: Alignment.topCenter,
@@ -205,7 +200,7 @@ class _Logo9002Painter extends CustomPainter {
 }
 
 // ============================================================================
-// PANTALLA DE INICIO DE SESIÓN (LOGIN CON LOGO Y COLORES N° 9002)
+// PANTALLA DE INICIO DE SESIÓN (LOGIN)
 // ============================================================================
 class PantallaLogin extends StatefulWidget {
   const PantallaLogin({super.key});
@@ -296,7 +291,6 @@ class _PantallaLoginState extends State<PantallaLogin> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // LOGO OFICIAL N° 9002 EN EL INICIO
                     const LogoSistema9002(size: 96),
                     const SizedBox(height: 16),
                     const Text(
@@ -390,7 +384,7 @@ class _PantallaLoginState extends State<PantallaLogin> {
 }
 
 // ============================================================================
-// ESTRUCTURA PRINCIPAL CON BARRA NEGRA/ROJA Y LOGO N° 9002
+// ESTRUCTURA PRINCIPAL
 // ============================================================================
 class PantallaPrincipal extends StatefulWidget {
   final Map<String, dynamic> usuarioActual;
@@ -1387,7 +1381,7 @@ class _PantallaUsuariosSedesState extends State<PantallaUsuariosSedes> {
 }
 
 // ============================================================================
-// PANTALLA 1: ALUMNOS (CON PDF HORIZONTAL Y NOMBRES VISIBLES)
+// PANTALLA 1: ALUMNOS
 // ============================================================================
 class PantallaAlumnos extends StatefulWidget {
   final String sede;
@@ -1786,7 +1780,6 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
     );
   }
 
-  // EXPORTAR PDF DE CONDICIÓN EN HOJA A4 HORIZONTAL (LANDSCAPE) CON NOMBRES CLAROS
   Future<void> _exportarListadoPDF(String condicionFiltro) async {
     List<dynamic> filtrados = alumnos.where((a) {
       if (condicionFiltro == 'Todos') return true;
@@ -2885,7 +2878,7 @@ class _PantallaAlumnosState extends State<PantallaAlumnos> {
 }
 
 // ============================================================================
-// PANTALLA 2: GRUPOS Y PROYECTOS (SIN OVERFLOW HORIZONTAL)
+// PANTALLA 2: GRUPOS Y PROYECTOS
 // ============================================================================
 class PantallaGrupos extends StatefulWidget {
   final String sede;
@@ -3432,7 +3425,7 @@ class _PantallaGruposState extends State<PantallaGrupos> {
 }
 
 // ============================================================================
-// PANTALLA 3: SEGUIMIENTO, PLANILLA SEMANAL, PDF HORIZONTAL Y EXPORTACIÓN A WORD
+// PANTALLA 3: SEGUIMIENTO, PLANILLA GENERAL Y SECCIÓN ESPECIAL DE EVALUACIONES + S15
 // ============================================================================
 class PantallaSeguimiento extends StatefulWidget {
   final String sede;
@@ -3458,7 +3451,8 @@ class _PantallaSeguimientoState extends State<PantallaSeguimiento> {
   bool cargando = true;
   bool botEjecutando = false;
   String progresoBot = '';
-  bool _verComoPlanilla = false;
+  bool _evaluacionesCerradas = false;
+  String _modoVista = 'tarjetas';
   Timer? _timerEstado;
 
   final List<String> _semanasOrden = [
@@ -3470,6 +3464,13 @@ class _PantallaSeguimientoState extends State<PantallaSeguimiento> {
     'S11',
     'S12',
     'Evaluaciones',
+  ];
+  final List<String> _materiasEval = [
+    'Matemática',
+    'Lengua',
+    'Cs. Sociales',
+    'Cs. Naturales',
+    'FpT',
   ];
 
   @override
@@ -3488,14 +3489,24 @@ class _PantallaSeguimientoState extends State<PantallaSeguimiento> {
   Future<void> cargarSeguimiento() async {
     setState(() => cargando = true);
     try {
-      final response = await http.get(
+      final resAl = await http.get(
         Uri.parse(
           '$baseUrl/alumnos_cursada?sede=${Uri.encodeComponent(widget.sede)}&modulo=${widget.modulo}&orientacion=${Uri.encodeComponent(widget.orientacion)}&anio=${widget.anio}&periodo=${Uri.encodeComponent(widget.periodo)}',
         ),
       );
-      if (response.statusCode == 200) {
+      final resConf = await http.get(
+        Uri.parse(
+          '$baseUrl/config_curso?modulo=${widget.modulo}&orientacion=${Uri.encodeComponent(widget.orientacion)}',
+        ),
+      );
+
+      if (resConf.statusCode == 200) {
+        final conf = json.decode(resConf.body);
+        _evaluacionesCerradas = conf['evaluaciones_cerradas'] == true;
+      }
+      if (resAl.statusCode == 200) {
         setState(() {
-          cursadas = json.decode(response.body);
+          cursadas = json.decode(resAl.body);
           cargando = false;
         });
       }
@@ -3504,19 +3515,87 @@ class _PantallaSeguimientoState extends State<PantallaSeguimiento> {
     }
   }
 
-  String _obtenerEstadoSemana(dynamic alumnoCursada, String codigoSemana) {
-    final segRaw = alumnoCursada['seguimiento_semanal'];
-    if (segRaw == null) return '-';
+  Future<void> _cambiarCierreEvaluaciones(bool cerrar) async {
+    bool confirmar =
+        await showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Text(
+              cerrar
+                  ? '⛔ ¿Cerrar Período de Evaluaciones?'
+                  : '🔓 ¿Reabrir Evaluaciones?',
+            ),
+            content: Text(
+              cerrar
+                  ? 'Al cerrar las evaluaciones, todas las evaluaciones que figuren sin realizar ("-") pasarán automáticamente a estado "Sin rendir -> A Recuperar en Semana 15".'
+                  : 'Al reabrir las evaluaciones, los alumnos que aún no rindieron volverán a figurar como "Pendiente (En tiempo)" sin ir a recuperatorio todavía.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancelar'),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: cerrar ? kRojoLogo : Colors.green.shade700,
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: () => Navigator.pop(ctx, true),
+                child: Text(cerrar ? 'Sí, Cerrar Evaluaciones' : 'Sí, Reabrir'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
 
-    Map<String, dynamic> segMap = {};
+    if (!confirmar) return;
+
+    try {
+      final res = await http.post(
+        Uri.parse('$baseUrl/config_curso/cerrar_evaluaciones'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'numero_modulo': widget.modulo,
+          'orientacion': widget.orientacion,
+          'sede': widget.sede,
+          'anio': widget.anio,
+          'periodo': widget.periodo,
+          'cerradas': cerrar,
+        }),
+      );
+      if (res.statusCode == 200) {
+        await cargarSeguimiento();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(json.decode(res.body)['mensaje']),
+              backgroundColor: cerrar ? kRojoLogo : Colors.green.shade700,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print(e);
+    }
+  }
+
+  Map<String, dynamic> _parsearSeguimientoJson(dynamic alumnoCursada) {
+    final segRaw = alumnoCursada['seguimiento_semanal'];
+    if (segRaw == null) return {};
     if (segRaw is String && segRaw.isNotEmpty) {
       try {
-        segMap = json.decode(segRaw);
-      } catch (_) {}
+        return Map<String, dynamic>.from(json.decode(segRaw));
+      } catch (_) {
+        return {};
+      }
     } else if (segRaw is Map) {
-      segMap = Map<String, dynamic>.from(segRaw);
+      return Map<String, dynamic>.from(segRaw);
     }
+    return {};
+  }
 
+  String _obtenerEstadoSemana(dynamic alumnoCursada, String codigoSemana) {
+    final segMap = _parsearSeguimientoJson(alumnoCursada);
     if (!segMap.containsKey(codigoSemana)) return '-';
     final datosSem = segMap[codigoSemana];
     if (datosSem is! Map) return '-';
@@ -3524,204 +3603,120 @@ class _PantallaSeguimientoState extends State<PantallaSeguimiento> {
     List completas = (datosSem['completas'] as List?) ?? [];
     List faltan = (datosSem['faltan'] as List?) ?? [];
 
+    if (codigoSemana == 'Evaluaciones') {
+      final detalle = datosSem['detalle_notas'];
+      if (detalle is Map && detalle.isNotEmpty) {
+        List<String> resumenes = [];
+        detalle.forEach((mat, info) {
+          if (info is Map) {
+            bool real = info['realizada'] == true;
+            String? nota = info['nota']?.toString();
+            bool aprob = info['aprobada'] == true;
+            bool cerradaMoodle = info['cerradaEnMoodle'] == true;
+            if (real && nota != null) {
+              resumenes.add('$mat: $nota (${aprob ? "Aprob" : "Recup S15"})');
+            } else if (!real) {
+              resumenes.add(
+                (_evaluacionesCerradas || cerradaMoodle)
+                    ? '$mat: A Recup S15'
+                    : '$mat: Pendiente',
+              );
+            }
+          }
+        });
+        if (resumenes.isNotEmpty) return resumenes.join(' | ');
+      }
+    }
+
     if (completas.isEmpty && faltan.isEmpty) return '-';
     if (faltan.isEmpty) return 'COMPLETA';
     if (completas.isEmpty) return 'No realizó';
     return 'Debe: ${faltan.join(", ")}';
   }
 
-  // 1. EXPORTAR PDF EN HOJA A4 HORIZONTAL (LANDSCAPE) CON NOMBRES VISIBLES
-  Future<void> _exportarPlanillaSeguimientoPDF() async {
-    final pdf = pw.Document();
-    final formatoHorizontal = PdfPageFormat.a4.landscape;
+  Map<String, dynamic> _obtenerEstadoMateriaEvaluacion(
+    dynamic alumnoCursada,
+    String materia,
+  ) {
+    final segMap = _parsearSeguimientoJson(alumnoCursada);
+    final evalData = segMap['Evaluaciones'] is Map
+        ? Map<String, dynamic>.from(segMap['Evaluaciones'])
+        : {};
+    final recData = segMap['S15_Recup'] is Map
+        ? Map<String, dynamic>.from(segMap['S15_Recup'])
+        : {};
 
-    pdf.addPage(
-      pw.MultiPage(
-        pageTheme: pw.PageTheme(
-          pageFormat: formatoHorizontal,
-          orientation: pw.PageOrientation.landscape,
-          margin: const pw.EdgeInsets.all(18),
-        ),
-        build: (pw.Context context) => [
-          pw.Header(
-            level: 0,
-            child: pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-              children: [
-                pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    pw.Text(
-                      'SISTEMA VIRTUAL N° 9002 - PLANILLA DE SEGUIMIENTO MOODLE',
-                      style: pw.TextStyle(
-                        fontSize: 15,
-                        fontWeight: pw.FontWeight.bold,
-                      ),
-                    ),
-                    pw.Text(
-                      'Sede: ${widget.sede} | Módulo ${widget.modulo} (${widget.orientacion}) | ${widget.anio} - ${widget.periodo}',
-                      style: const pw.TextStyle(fontSize: 10.5),
-                    ),
-                  ],
-                ),
-                pw.Text(
-                  'Total Alumnos: ${cursadas.length}',
-                  style: pw.TextStyle(
-                    fontSize: 11,
-                    fontWeight: pw.FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          pw.SizedBox(height: 6),
-          pw.TableHelper.fromTextArray(
-            headers: [
-              'N°',
-              'Apellido y Nombre del Alumno',
-              'DNI',
-              'Sem. 2',
-              'Sem. 3',
-              'Sem. 4',
-              'Sem. 7',
-              'Sem. 8',
-              'Sem. 11',
-              'Sem. 12',
-              'Eval.',
-            ],
-            data: List.generate(cursadas.length, (index) {
-              final c = cursadas[index];
-              final nombreAlumno = (c['nombre_completo'] ?? 'Sin Nombre')
-                  .toString();
-              final dniAlumno = (c['dni'] ?? '').toString();
-              return [
-                '${index + 1}',
-                nombreAlumno,
-                dniAlumno,
-                ..._semanasOrden.map((sem) => _obtenerEstadoSemana(c, sem)),
-              ];
-            }),
-            headerStyle: pw.TextStyle(
-              fontWeight: pw.FontWeight.bold,
-              fontSize: 8.5,
-              color: PdfColors.white,
-            ),
-            headerDecoration: const pw.BoxDecoration(
-              color: PdfColor.fromInt(0xFFD32F2F),
-            ),
-            cellStyle: const pw.TextStyle(
-              fontSize: 7.5,
-              color: PdfColors.black,
-            ),
-            cellAlignment: pw.Alignment.centerLeft,
-            columnWidths: {
-              0: const pw.FlexColumnWidth(0.5),
-              1: const pw.FlexColumnWidth(2.6),
-              2: const pw.FlexColumnWidth(1.1),
-              3: const pw.FlexColumnWidth(1.1),
-              4: const pw.FlexColumnWidth(1.1),
-              5: const pw.FlexColumnWidth(1.1),
-              6: const pw.FlexColumnWidth(1.1),
-              7: const pw.FlexColumnWidth(1.1),
-              8: const pw.FlexColumnWidth(1.1),
-              9: const pw.FlexColumnWidth(1.1),
-              10: const pw.FlexColumnWidth(1.1),
-            },
-          ),
-        ],
-      ),
-    );
+    final detEval = evalData['detalle_notas'] is Map
+        ? Map<String, dynamic>.from(evalData['detalle_notas'])
+        : {};
+    final detRec = recData['detalle_notas'] is Map
+        ? Map<String, dynamic>.from(recData['detalle_notas'])
+        : {};
 
-    await Printing.layoutPdf(
-      format: formatoHorizontal,
-      onLayout: (_) async => pdf.save(),
-      name: 'Planilla_Seguimiento_${widget.sede}_Mod${widget.modulo}.pdf',
-    );
-  }
-
-  // 2. EXPORTAR COMO ARCHIVO WORD (.DOC) DIRECTO (CON TABLA HORIZONTAL Y NOMBRES)
-  Future<void> _exportarPlanillaWord() async {
-    StringBuffer filasHtml = StringBuffer();
-    for (int i = 0; i < cursadas.length; i++) {
-      final c = cursadas[i];
-      final nombre = (c['nombre_completo'] ?? '').toString();
-      final dni = (c['dni'] ?? '').toString();
-      filasHtml.write('<tr>');
-      filasHtml.write(
-        '<td style="border:1px solid #333; padding:5px; text-align:center;">${i + 1}</td>',
-      );
-      filasHtml.write(
-        '<td style="border:1px solid #333; padding:5px; font-weight:bold;">$nombre</td>',
-      );
-      filasHtml.write(
-        '<td style="border:1px solid #333; padding:5px;">$dni</td>',
-      );
-      for (final sem in _semanasOrden) {
-        final est = _obtenerEstadoSemana(c, sem);
-        String bg = '#FFFFFF';
-        if (est == 'COMPLETA')
-          bg = '#E8F5E9';
-        else if (est.startsWith('Debe:'))
-          bg = '#FFF3E0';
-        else if (est == 'No realizó')
-          bg = '#FFEBEE';
-        filasHtml.write(
-          '<td style="border:1px solid #333; padding:5px; background-color:$bg; font-size:9pt;">$est</td>',
-        );
-      }
-      filasHtml.write('</tr>');
+    if (detRec.containsKey(materia) &&
+        detRec[materia] is Map &&
+        detRec[materia]['realizada'] == true) {
+      final rInfo = detRec[materia];
+      final notaR = rInfo['nota']?.toString() ?? '-';
+      final aprobR = rInfo['aprobada'] == true;
+      return {
+        'texto': aprobR ? '$notaR (Aprob. en S15)' : '$notaR (Desap. S15)',
+        'aprobada': aprobR,
+        'recuperatorio': !aprobR,
+        'pendienteEnTiempo': false,
+      };
     }
 
-    String docWord =
-        '''
-<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
-<head>
-<meta charset="utf-8">
-<title>Seguimiento Moodle</title>
-<style>
-  @page Section1 { size: 841.9pt 595.3pt; mso-page-orientation: landscape; margin: 1.5cm; }
-  div.Section1 { page: Section1; }
-  body { font-family: Arial, sans-serif; }
-  table { border-collapse: collapse; width: 100%; }
-</style>
-</head>
-<body>
-<div class="Section1">
-  <h2 style="color:#D32F2F; margin-bottom:2px;">SISTEMA VIRTUAL DE FORMACIÓN A DISTANCIA N° 9002</h2>
-  <p style="margin-top:0; font-size:11pt;"><b>Sede:</b> ${widget.sede} &nbsp;|&nbsp; <b>Módulo:</b> ${widget.modulo} (${widget.orientacion}) &nbsp;|&nbsp; <b>Ciclo:</b> ${widget.anio} - ${widget.periodo}</p>
-  <table>
-    <thead>
-      <tr style="background-color:#141414; color:#FFFFFF; font-weight:bold; font-size:9.5pt;">
-        <th style="border:1px solid #333; padding:6px;">N°</th>
-        <th style="border:1px solid #333; padding:6px;">Apellido y Nombre</th>
-        <th style="border:1px solid #333; padding:6px;">DNI</th>
-        <th style="border:1px solid #333; padding:6px;">Sem. 2</th>
-        <th style="border:1px solid #333; padding:6px;">Sem. 3</th>
-        <th style="border:1px solid #333; padding:6px;">Sem. 4</th>
-        <th style="border:1px solid #333; padding:6px;">Sem. 7</th>
-        <th style="border:1px solid #333; padding:6px;">Sem. 8</th>
-        <th style="border:1px solid #333; padding:6px;">Sem. 11</th>
-        <th style="border:1px solid #333; padding:6px;">Sem. 12</th>
-        <th style="border:1px solid #333; padding:6px;">Eval.</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${filasHtml.toString()}
-    </tbody>
-  </table>
-</div>
-</body>
-</html>
-''';
+    if (detEval.containsKey(materia) && detEval[materia] is Map) {
+      final info = detEval[materia];
+      final realizada = info['realizada'] == true;
+      final nota = info['nota']?.toString();
+      final aprobada = info['aprobada'] == true;
+      final cerradaMoodle = info['cerradaEnMoodle'] == true;
 
-    final bytes = Uint8List.fromList(utf8.encode(docWord));
-    await Printing.sharePdf(
-      bytes: bytes,
-      filename: 'Seguimiento_${widget.sede}_Mod${widget.modulo}.doc',
-    );
+      if (realizada && nota != null) {
+        return {
+          'texto': '$nota (${aprobada ? "Aprobado" : "Desaprobado -> S15"})',
+          'aprobada': aprobada,
+          'recuperatorio': !aprobada,
+          'pendienteEnTiempo': false,
+        };
+      } else if (realizada) {
+        return {
+          'texto': 'Realizada',
+          'aprobada': true,
+          'recuperatorio': false,
+          'pendienteEnTiempo': false,
+        };
+      } else {
+        bool yaCerro = _evaluacionesCerradas || cerradaMoodle;
+        if (yaCerro) {
+          return {
+            'texto': 'Sin rendir (-> S15)',
+            'aprobada': false,
+            'recuperatorio': true,
+            'pendienteEnTiempo': false,
+          };
+        } else {
+          return {
+            'texto': 'Pendiente (En tiempo)',
+            'aprobada': false,
+            'recuperatorio': false,
+            'pendienteEnTiempo': true,
+          };
+        }
+      }
+    }
+
+    return {
+      'texto': '-',
+      'aprobada': false,
+      'recuperatorio': false,
+      'pendienteEnTiempo': false,
+    };
   }
 
-  void _abrirSelectorAlumnosBot() {
+  void _abrirSelectorAlumnosBot({required bool soloEvaluaciones}) {
     Set<int> seleccionados = cursadas
         .map<int>((c) => c['cursada_id'] as int)
         .toSet();
@@ -3732,12 +3727,38 @@ class _PantallaSeguimientoState extends State<PantallaSeguimiento> {
         builder: (context, setStateModal) {
           bool todosMarcados = seleccionados.length == cursadas.length;
           return AlertDialog(
-            title: Text('Bot Moodle - Sede ${widget.sede}'),
+            title: Text(
+              soloEvaluaciones
+                  ? '🎯 Seguimiento SOLO EVALUACIONES (${widget.sede})'
+                  : '🤖 Seguimiento Completo Moodle (${widget.sede})',
+              style: TextStyle(
+                color: soloEvaluaciones ? Colors.indigo.shade900 : kNegroLogo,
+                fontWeight: FontWeight.bold,
+                fontSize: 17,
+              ),
+            ),
             content: Container(
-              constraints: const BoxConstraints(maxWidth: 480, maxHeight: 420),
+              constraints: const BoxConstraints(maxWidth: 500, maxHeight: 450),
               width: double.maxFinite,
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: soloEvaluaciones
+                          ? Colors.indigo.shade50
+                          : Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      soloEvaluaciones
+                          ? 'Se escanearán únicamente las Evaluaciones (y S15). Si tienen nota >= 6 quedan Aprobadas; si tienen < 6 van a Recuperatorio; y si aún no las hicieron quedan como Pendientes (En tiempo) hasta que toques "Cerrar Evaluaciones".'
+                          : 'Se escanearán todas las semanas de cursada (S02 a S12) + las Evaluaciones con su nota.',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
                   CheckboxListTile(
                     title: const Text(
                       'Seleccionar / Deseleccionar Todos',
@@ -3755,7 +3776,7 @@ class _PantallaSeguimientoState extends State<PantallaSeguimiento> {
                       });
                     },
                   ),
-                  const Divider(),
+                  const Divider(height: 4),
                   Expanded(
                     child: ListView.builder(
                       itemCount: cursadas.length,
@@ -3764,7 +3785,10 @@ class _PantallaSeguimientoState extends State<PantallaSeguimiento> {
                         int cid = al['cursada_id'];
                         return CheckboxListTile(
                           dense: true,
-                          title: Text(al['nombre_completo']),
+                          title: Text(
+                            al['nombre_completo'],
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
                           subtitle: Text('DNI: ${al['dni']}'),
                           value: seleccionados.contains(cid),
                           onChanged: (v) {
@@ -3800,7 +3824,9 @@ class _PantallaSeguimientoState extends State<PantallaSeguimiento> {
               ),
               ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: kRojoLogo,
+                  backgroundColor: soloEvaluaciones
+                      ? Colors.indigo.shade800
+                      : kRojoLogo,
                   foregroundColor: Colors.white,
                 ),
                 onPressed: seleccionados.isEmpty
@@ -3810,10 +3836,15 @@ class _PantallaSeguimientoState extends State<PantallaSeguimiento> {
                         _ejecutarBotConSeleccion(
                           seleccionados.toList(),
                           forzar: true,
+                          soloEvaluaciones: soloEvaluaciones,
                         );
                       },
                 icon: const Icon(Icons.play_arrow),
-                label: Text('Iniciar (${seleccionados.length})'),
+                label: Text(
+                  soloEvaluaciones
+                      ? 'Evaluar (${seleccionados.length})'
+                      : 'Iniciar (${seleccionados.length})',
+                ),
               ),
             ],
           );
@@ -3825,6 +3856,7 @@ class _PantallaSeguimientoState extends State<PantallaSeguimiento> {
   Future<void> _ejecutarBotConSeleccion(
     List<int> cursadaIds, {
     bool forzar = false,
+    bool soloEvaluaciones = false,
   }) async {
     try {
       final res = await http.post(
@@ -3838,12 +3870,15 @@ class _PantallaSeguimientoState extends State<PantallaSeguimiento> {
           'periodo': widget.periodo,
           'cursada_ids': cursadaIds,
           'forzar': forzar,
+          'solo_evaluaciones': soloEvaluaciones,
         }),
       );
       if (res.statusCode == 200) {
         setState(() {
           botEjecutando = true;
-          progresoBot = 'Iniciando seguimiento en ${widget.sede}...';
+          progresoBot = soloEvaluaciones
+              ? 'Analizando Evaluaciones con nota en ${widget.sede}...'
+              : 'Iniciando seguimiento completo en ${widget.sede}...';
         });
         _iniciarMonitoreoBot();
       }
@@ -3883,6 +3918,237 @@ class _PantallaSeguimientoState extends State<PantallaSeguimiento> {
     }
   }
 
+  Future<void> _exportarPlanillaSeguimientoPDF() async {
+    final pdf = pw.Document();
+    final formatoHorizontal = PdfPageFormat.a4.landscape;
+    final esVistaEval = _modoVista == 'evaluaciones';
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageTheme: pw.PageTheme(
+          pageFormat: formatoHorizontal,
+          orientation: pw.PageOrientation.landscape,
+          margin: const pw.EdgeInsets.all(18),
+        ),
+        build: (pw.Context context) => [
+          pw.Header(
+            level: 0,
+            child: pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(
+                      esVistaEval
+                          ? 'SISTEMA VIRTUAL N° 9002 - ACTA DE EVALUACIONES Y RECUPERATORIOS (SEMANA 15)'
+                          : 'SISTEMA VIRTUAL N° 9002 - PLANILLA DE SEGUIMIENTO SEMANAL Y EVALUACIONES',
+                      style: pw.TextStyle(
+                        fontSize: 14,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
+                    pw.Text(
+                      'Sede: ${widget.sede} | Módulo ${widget.modulo} (${widget.orientacion}) | Estado Eval: ${_evaluacionesCerradas ? "CERRADAS" : "ABIERTAS (En tiempo)"}',
+                      style: const pw.TextStyle(fontSize: 10),
+                    ),
+                  ],
+                ),
+                pw.Text(
+                  'Total Alumnos: ${cursadas.length}',
+                  style: pw.TextStyle(
+                    fontSize: 11,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          pw.SizedBox(height: 6),
+          if (esVistaEval)
+            pw.TableHelper.fromTextArray(
+              headers: [
+                'N°',
+                'Apellido y Nombre del Alumno',
+                'DNI',
+                'Eval. Matemática',
+                'Eval. Lengua',
+                'Eval. Cs. Sociales',
+                'Eval. Cs. Naturales',
+                'Eval. FpT',
+                'Situación Semana 15',
+              ],
+              data: List.generate(cursadas.length, (index) {
+                final c = cursadas[index];
+                List<String> aRecuperar = [];
+                List<String> pendientes = [];
+                final celdasMaterias = _materiasEval.map((mat) {
+                  final info = _obtenerEstadoMateriaEvaluacion(c, mat);
+                  if (info['recuperatorio'] == true) aRecuperar.add(mat);
+                  if (info['pendienteEnTiempo'] == true) pendientes.add(mat);
+                  return info['texto'].toString();
+                }).toList();
+
+                String estadoS15 = 'Todo Aprobado';
+                if (aRecuperar.isNotEmpty) {
+                  estadoS15 = 'Rinde S15: ${aRecuperar.join(", ")}';
+                } else if (pendientes.isNotEmpty) {
+                  estadoS15 = 'En tiempo (${pendientes.length} pend.)';
+                }
+
+                return [
+                  '${index + 1}',
+                  (c['nombre_completo'] ?? '').toString(),
+                  (c['dni'] ?? '').toString(),
+                  ...celdasMaterias,
+                  estadoS15,
+                ];
+              }),
+              headerStyle: pw.TextStyle(
+                fontWeight: pw.FontWeight.bold,
+                fontSize: 8.5,
+                color: PdfColors.white,
+              ),
+              headerDecoration: const pw.BoxDecoration(
+                color: PdfColor.fromInt(0xFF283593),
+              ),
+              cellStyle: const pw.TextStyle(
+                fontSize: 8,
+                color: PdfColors.black,
+              ),
+            )
+          else
+            pw.TableHelper.fromTextArray(
+              headers: [
+                'N°',
+                'Apellido y Nombre del Alumno',
+                'DNI',
+                'Sem. 2',
+                'Sem. 3',
+                'Sem. 4',
+                'Sem. 7',
+                'Sem. 8',
+                'Sem. 11',
+                'Sem. 12',
+                'Evaluaciones (Con Nota)',
+              ],
+              data: List.generate(cursadas.length, (index) {
+                final c = cursadas[index];
+                return [
+                  '${index + 1}',
+                  (c['nombre_completo'] ?? 'Sin Nombre').toString(),
+                  (c['dni'] ?? '').toString(),
+                  ..._semanasOrden.map((sem) => _obtenerEstadoSemana(c, sem)),
+                ];
+              }),
+              headerStyle: pw.TextStyle(
+                fontWeight: pw.FontWeight.bold,
+                fontSize: 8.5,
+                color: PdfColors.white,
+              ),
+              headerDecoration: const pw.BoxDecoration(
+                color: PdfColor.fromInt(0xFFD32F2F),
+              ),
+              cellStyle: const pw.TextStyle(
+                fontSize: 7.5,
+                color: PdfColors.black,
+              ),
+              cellAlignment: pw.Alignment.centerLeft,
+            ),
+        ],
+      ),
+    );
+
+    await Printing.layoutPdf(
+      format: formatoHorizontal,
+      onLayout: (_) async => pdf.save(),
+      name: esVistaEval
+          ? 'Evaluaciones_S15_${widget.sede}_Mod${widget.modulo}.pdf'
+          : 'Planilla_Seguimiento_${widget.sede}_Mod${widget.modulo}.pdf',
+    );
+  }
+
+  Future<void> _exportarPlanillaWord() async {
+    StringBuffer filasHtml = StringBuffer();
+    for (int i = 0; i < cursadas.length; i++) {
+      final c = cursadas[i];
+      final nombre = (c['nombre_completo'] ?? '').toString();
+      final dni = (c['dni'] ?? '').toString();
+      filasHtml.write('<tr>');
+      filasHtml.write(
+        '<td style="border:1px solid #333; padding:5px; text-align:center;">${i + 1}</td>',
+      );
+      filasHtml.write(
+        '<td style="border:1px solid #333; padding:5px; font-weight:bold;">$nombre</td>',
+      );
+      filasHtml.write(
+        '<td style="border:1px solid #333; padding:5px;">$dni</td>',
+      );
+      for (final sem in _semanasOrden) {
+        final est = _obtenerEstadoSemana(c, sem);
+        String bg = '#FFFFFF';
+        if (est == 'COMPLETA' || est.contains('Aprob'))
+          bg = '#E8F5E9';
+        else if (est.startsWith('Debe:') || est.contains('Recup'))
+          bg = '#FFF3E0';
+        else if (est == 'No realizó')
+          bg = '#FFEBEE';
+        filasHtml.write(
+          '<td style="border:1px solid #333; padding:5px; background-color:$bg; font-size:8.5pt;">$est</td>',
+        );
+      }
+      filasHtml.write('</tr>');
+    }
+
+    String docWord =
+        '''
+<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+<head>
+<meta charset="utf-8">
+<title>Seguimiento Moodle</title>
+<style>
+  @page Section1 { size: 841.9pt 595.3pt; mso-page-orientation: landscape; margin: 1.2cm; }
+  div.Section1 { page: Section1; }
+  body { font-family: Arial, sans-serif; }
+  table { border-collapse: collapse; width: 100%; }
+</style>
+</head>
+<body>
+<div class="Section1">
+  <h2 style="color:#D32F2F; margin-bottom:2px;">SISTEMA VIRTUAL DE FORMACIÓN A DISTANCIA N° 9002</h2>
+  <p style="margin-top:0; font-size:10.5pt;"><b>Sede:</b> ${widget.sede} &nbsp;|&nbsp; <b>Módulo:</b> ${widget.modulo} (${widget.orientacion}) &nbsp;|&nbsp; <b>Ciclo:</b> ${widget.anio} - ${widget.periodo}</p>
+  <table>
+    <thead>
+      <tr style="background-color:#141414; color:#FFFFFF; font-weight:bold; font-size:9pt;">
+        <th style="border:1px solid #333; padding:6px;">N°</th>
+        <th style="border:1px solid #333; padding:6px;">Apellido y Nombre</th>
+        <th style="border:1px solid #333; padding:6px;">DNI</th>
+        <th style="border:1px solid #333; padding:6px;">Sem. 2</th>
+        <th style="border:1px solid #333; padding:6px;">Sem. 3</th>
+        <th style="border:1px solid #333; padding:6px;">Sem. 4</th>
+        <th style="border:1px solid #333; padding:6px;">Sem. 7</th>
+        <th style="border:1px solid #333; padding:6px;">Sem. 8</th>
+        <th style="border:1px solid #333; padding:6px;">Sem. 11</th>
+        <th style="border:1px solid #333; padding:6px;">Sem. 12</th>
+        <th style="border:1px solid #333; padding:6px;">Evaluaciones (Nota)</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${filasHtml.toString()}
+    </tbody>
+  </table>
+</div>
+</body>
+</html>
+''';
+
+    final bytes = Uint8List.fromList(utf8.encode(docWord));
+    await Printing.sharePdf(
+      bytes: bytes,
+      filename: 'Seguimiento_${widget.sede}_Mod${widget.modulo}.doc',
+    );
+  }
+
   void copiarParaWhatsApp() {
     String reporteGral =
         "Seguimiento Sede ${widget.sede} - Mód. ${widget.modulo} (${widget.orientacion}):\n\n";
@@ -3913,9 +4179,9 @@ class _PantallaSeguimientoState extends State<PantallaSeguimiento> {
             headingTextStyle: const TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.bold,
-              fontSize: 13,
+              fontSize: 12.5,
             ),
-            columnSpacing: 18,
+            columnSpacing: 16,
             columns: const [
               DataColumn(label: Text('Apellido y Nombre')),
               DataColumn(label: Text('Semana 2')),
@@ -3925,7 +4191,7 @@ class _PantallaSeguimientoState extends State<PantallaSeguimiento> {
               DataColumn(label: Text('Semana 8')),
               DataColumn(label: Text('Semana 11')),
               DataColumn(label: Text('Semana 12')),
-              DataColumn(label: Text('Evaluaciones')),
+              DataColumn(label: Text('Evaluaciones (Con Nota)')),
             ],
             rows: cursadas.map((c) {
               return DataRow(
@@ -3943,10 +4209,12 @@ class _PantallaSeguimientoState extends State<PantallaSeguimiento> {
                     String est = _obtenerEstadoSemana(c, sem);
                     Color colorTexto = Colors.black87;
                     Color colorFondo = Colors.transparent;
-                    if (est == 'COMPLETA') {
+                    if (est == 'COMPLETA' ||
+                        (est.contains('Aprob') && !est.contains('Recup'))) {
                       colorTexto = Colors.green.shade800;
                       colorFondo = Colors.green.shade50;
-                    } else if (est.startsWith('Debe:')) {
+                    } else if (est.startsWith('Debe:') ||
+                        est.contains('Recup')) {
                       colorTexto = Colors.orange.shade900;
                       colorFondo = Colors.orange.shade50;
                     } else if (est == 'No realizó') {
@@ -3983,6 +4251,230 @@ class _PantallaSeguimientoState extends State<PantallaSeguimiento> {
     );
   }
 
+  Widget _construirVistaEvaluaciones() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: double.infinity,
+          margin: const EdgeInsets.only(bottom: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: _evaluacionesCerradas
+                ? Colors.red.shade50
+                : Colors.indigo.shade50,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: _evaluacionesCerradas ? kRojoLogo : Colors.indigo.shade200,
+            ),
+          ),
+          child: Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 12,
+            runSpacing: 8,
+            children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    _evaluacionesCerradas ? Icons.lock : Icons.lock_open,
+                    color: _evaluacionesCerradas ? kRojoLogo : Colors.indigo,
+                  ),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      _evaluacionesCerradas
+                          ? 'EVALUACIONES CERRADAS: Quienes no rindieron ("-") ya figuran en Recuperatorio (Semana 15).'
+                          : 'EVALUACIONES ABIERTAS (EN TIEMPO): Solo van a Recuperatorio quienes rindieron y sacaron menos de 6. Quienes aún no rindieron figuran "Pendiente (En tiempo)".',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: _evaluacionesCerradas
+                            ? kRojoLogo
+                            : Colors.indigo.shade900,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _evaluacionesCerradas
+                      ? Colors.green.shade700
+                      : kRojoLogo,
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: () =>
+                    _cambiarCierreEvaluaciones(!_evaluacionesCerradas),
+                icon: Icon(
+                  _evaluacionesCerradas ? Icons.lock_open : Icons.lock_clock,
+                  size: 18,
+                ),
+                label: Text(
+                  _evaluacionesCerradas
+                      ? 'Reabrir Evaluaciones'
+                      : 'Cerrar Evaluaciones',
+                ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: Card(
+            elevation: 2,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.vertical,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: DataTable(
+                  headingRowColor: WidgetStateProperty.all(
+                    Colors.indigo.shade900,
+                  ),
+                  headingTextStyle: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12.5,
+                  ),
+                  columnSpacing: 18,
+                  columns: const [
+                    DataColumn(label: Text('Apellido y Nombre')),
+                    DataColumn(label: Text('Eval. Matemática')),
+                    DataColumn(label: Text('Eval. Lengua')),
+                    DataColumn(label: Text('Eval. Cs. Sociales')),
+                    DataColumn(label: Text('Eval. Cs. Naturales')),
+                    DataColumn(label: Text('Eval. FpT')),
+                    DataColumn(label: Text('Estado Semana 15 (Recuperatorio)')),
+                    DataColumn(label: Text('Evaluar 1')),
+                  ],
+                  rows: cursadas.map((c) {
+                    List<String> materiasARecuperar = [];
+                    List<String> materiasPendientesEnTiempo = [];
+
+                    List<DataCell> celdasEval = _materiasEval.map((mat) {
+                      final info = _obtenerEstadoMateriaEvaluacion(c, mat);
+                      final String texto = info['texto'];
+                      final bool aprob = info['aprobada'] == true;
+                      final bool recup = info['recuperatorio'] == true;
+                      final bool pendTiempo = info['pendienteEnTiempo'] == true;
+
+                      if (recup) materiasARecuperar.add(mat);
+                      if (pendTiempo) materiasPendientesEnTiempo.add(mat);
+
+                      Color bg = Colors.transparent;
+                      Color fg = Colors.black87;
+                      if (aprob) {
+                        bg = Colors.green.shade50;
+                        fg = Colors.green.shade900;
+                      } else if (recup) {
+                        bg = Colors.red.shade50;
+                        fg = kRojoLogo;
+                      } else if (pendTiempo) {
+                        bg = Colors.blue.shade50;
+                        fg = Colors.blue.shade900;
+                      }
+
+                      return DataCell(
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: bg,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            texto,
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.bold,
+                              color: fg,
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList();
+
+                    String textoS15 = '✅ Sin Recuperatorios';
+                    Color bgS15 = Colors.teal.shade50;
+                    Color fgS15 = Colors.teal.shade900;
+                    Color borderS15 = Colors.teal;
+
+                    if (materiasARecuperar.isNotEmpty) {
+                      textoS15 =
+                          '⚠️ Rinde S15: ${materiasARecuperar.join(", ")}';
+                      bgS15 = Colors.orange.shade50;
+                      fgS15 = Colors.orange.shade900;
+                      borderS15 = Colors.orange.shade800;
+                    } else if (materiasPendientesEnTiempo.isNotEmpty) {
+                      textoS15 =
+                          '⏳ En tiempo (${materiasPendientesEnTiempo.length} sin rendir aún)';
+                      bgS15 = Colors.blue.shade50;
+                      fgS15 = Colors.blue.shade900;
+                      borderS15 = Colors.blue.shade400;
+                    }
+
+                    return DataRow(
+                      cells: [
+                        DataCell(
+                          Text(
+                            c['nombre_completo'],
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12.5,
+                            ),
+                          ),
+                        ),
+                        ...celdasEval,
+                        DataCell(
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: bgS15,
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: borderS15),
+                            ),
+                            child: Text(
+                              textoS15,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: fgS15,
+                              ),
+                            ),
+                          ),
+                        ),
+                        DataCell(
+                          IconButton(
+                            tooltip:
+                                'Escanear SOLO Evaluaciones de este alumno',
+                            icon: const Icon(
+                              Icons.fact_check_outlined,
+                              color: Colors.indigo,
+                            ),
+                            onPressed: () => _ejecutarBotConSeleccion(
+                              [c['cursada_id']],
+                              forzar: true,
+                              soloEvaluaciones: true,
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -3993,8 +4485,8 @@ class _PantallaSeguimientoState extends State<PantallaSeguimiento> {
           Wrap(
             alignment: WrapAlignment.spaceBetween,
             crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 12,
-            runSpacing: 12,
+            spacing: 10,
+            runSpacing: 10,
             children: [
               Text(
                 'Seguimiento [${widget.sede}] - Mód. ${widget.modulo}',
@@ -4009,11 +4501,10 @@ class _PantallaSeguimientoState extends State<PantallaSeguimiento> {
                 runSpacing: 8,
                 children: [
                   ElevatedButton.icon(
-                    onPressed: _abrirSelectorAlumnosBot,
+                    onPressed: () =>
+                        _abrirSelectorAlumnosBot(soloEvaluaciones: false),
                     icon: const Icon(Icons.smart_toy, size: 18),
-                    label: Text(
-                      botEjecutando ? 'Bot Activo' : 'Sincronizar Moodle',
-                    ),
+                    label: const Text('Bot Completo'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: kRojoLogo,
                       foregroundColor: Colors.white,
@@ -4021,23 +4512,43 @@ class _PantallaSeguimientoState extends State<PantallaSeguimiento> {
                   ),
                   ElevatedButton.icon(
                     onPressed: () =>
-                        setState(() => _verComoPlanilla = !_verComoPlanilla),
+                        _abrirSelectorAlumnosBot(soloEvaluaciones: true),
+                    icon: const Icon(Icons.fact_check, size: 18),
+                    label: const Text('Bot Solo Evaluaciones'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.indigo.shade800,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: () =>
+                        _cambiarCierreEvaluaciones(!_evaluacionesCerradas),
                     icon: Icon(
-                      _verComoPlanilla ? Icons.view_agenda : Icons.table_chart,
+                      _evaluacionesCerradas
+                          ? Icons.lock_open
+                          : Icons.lock_clock,
                       size: 18,
                     ),
                     label: Text(
-                      _verComoPlanilla ? 'Ver Tarjetas' : 'Ver Planilla',
+                      _evaluacionesCerradas
+                          ? 'Reabrir Eval.'
+                          : 'Cerrar Evaluaciones',
                     ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: kNegroLogo,
+                      backgroundColor: _evaluacionesCerradas
+                          ? Colors.teal.shade700
+                          : kCarbonLogo,
                       foregroundColor: Colors.white,
                     ),
                   ),
                   ElevatedButton.icon(
                     onPressed: _exportarPlanillaSeguimientoPDF,
                     icon: const Icon(Icons.picture_as_pdf, size: 18),
-                    label: const Text('PDF Horizontal'),
+                    label: Text(
+                      _modoVista == 'evaluaciones'
+                          ? 'PDF Evaluaciones'
+                          : 'PDF Horizontal',
+                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.deepOrange,
                       foregroundColor: Colors.white,
@@ -4065,9 +4576,67 @@ class _PantallaSeguimientoState extends State<PantallaSeguimiento> {
               ),
             ],
           ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            children: [
+              ChoiceChip(
+                avatar: Icon(
+                  Icons.view_agenda,
+                  size: 16,
+                  color: _modoVista == 'tarjetas' ? Colors.white : kNegroLogo,
+                ),
+                label: const Text('Vista Resumen (Tarjetas)'),
+                selected: _modoVista == 'tarjetas',
+                selectedColor: kNegroLogo,
+                labelStyle: TextStyle(
+                  color: _modoVista == 'tarjetas' ? Colors.white : kNegroLogo,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
+                onSelected: (_) => setState(() => _modoVista = 'tarjetas'),
+              ),
+              ChoiceChip(
+                avatar: Icon(
+                  Icons.table_chart,
+                  size: 16,
+                  color: _modoVista == 'planilla' ? Colors.white : kNegroLogo,
+                ),
+                label: const Text('Planilla Semanal Completa'),
+                selected: _modoVista == 'planilla',
+                selectedColor: kNegroLogo,
+                labelStyle: TextStyle(
+                  color: _modoVista == 'planilla' ? Colors.white : kNegroLogo,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
+                onSelected: (_) => setState(() => _modoVista = 'planilla'),
+              ),
+              ChoiceChip(
+                avatar: Icon(
+                  Icons.school,
+                  size: 16,
+                  color: _modoVista == 'evaluaciones'
+                      ? Colors.white
+                      : Colors.indigo.shade900,
+                ),
+                label: const Text('Sección Evaluaciones y S15 (Con Notas)'),
+                selected: _modoVista == 'evaluaciones',
+                selectedColor: Colors.indigo.shade800,
+                labelStyle: TextStyle(
+                  color: _modoVista == 'evaluaciones'
+                      ? Colors.white
+                      : Colors.indigo.shade900,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
+                onSelected: (_) => setState(() => _modoVista = 'evaluaciones'),
+              ),
+            ],
+          ),
           if (botEjecutando || progresoBot.isNotEmpty)
             Container(
-              margin: const EdgeInsets.only(top: 12),
+              margin: const EdgeInsets.only(top: 10),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: Colors.red.shade50,
@@ -4113,14 +4682,16 @@ class _PantallaSeguimientoState extends State<PantallaSeguimiento> {
                 ],
               ),
             ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           cargando
               ? const Expanded(
                   child: Center(child: CircularProgressIndicator()),
                 )
               : Expanded(
-                  child: _verComoPlanilla
+                  child: _modoVista == 'planilla'
                       ? _construirVistaPlanilla()
+                      : _modoVista == 'evaluaciones'
+                      ? _construirVistaEvaluaciones()
                       : ListView.builder(
                           itemCount: cursadas.length,
                           itemBuilder: (context, index) {
@@ -4129,7 +4700,7 @@ class _PantallaSeguimientoState extends State<PantallaSeguimiento> {
                                 (c['resumen_texto'] != null &&
                                     c['resumen_texto'].toString().isNotEmpty)
                                 ? c['resumen_texto']
-                                : 'Sin datos. Tocá "Sincronizar Moodle" para analizar a este alumno.';
+                                : 'Sin datos. Tocá "Bot Completo" o "Bot Solo Evaluaciones" para analizar a este alumno.';
                             return Card(
                               margin: const EdgeInsets.only(bottom: 10),
                               child: ListTile(
@@ -4149,15 +4720,34 @@ class _PantallaSeguimientoState extends State<PantallaSeguimiento> {
                                     ),
                                   ),
                                 ),
-                                trailing: IconButton(
-                                  tooltip: 'Sincronizar solo a este alumno',
-                                  icon: const Icon(
-                                    Icons.sync,
-                                    color: kRojoLogo,
-                                  ),
-                                  onPressed: () => _ejecutarBotConSeleccion([
-                                    c['cursada_id'],
-                                  ], forzar: true),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      tooltip: 'Sincronizar SOLO Evaluaciones de este alumno',
+                                      icon: const Icon(
+                                        Icons.fact_check,
+                                        color: Colors.indigo,
+                                      ),
+                                      onPressed: () => _ejecutarBotConSeleccion(
+                                        [c['cursada_id']],
+                                        forzar: true,
+                                        soloEvaluaciones: true,
+                                      ),
+                                    ),
+                                    IconButton(
+                                      tooltip: 'Sincronizar Todo el seguimiento de este alumno',
+                                      icon: const Icon(
+                                        Icons.sync,
+                                        color: kRojoLogo,
+                                      ),
+                                      onPressed: () => _ejecutarBotConSeleccion(
+                                        [c['cursada_id']],
+                                        forzar: true,
+                                        soloEvaluaciones: false,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             );
@@ -4171,7 +4761,7 @@ class _PantallaSeguimientoState extends State<PantallaSeguimiento> {
 }
 
 // ============================================================================
-// PANTALLA 4: CONFIGURACIÓN DE ENLACES MOODLE
+// PANTALLA 4: CONFIGURACIÓN DE ENLACES MOODLE (CON VERIFICACIÓN DE GUARDADO)
 // ============================================================================
 class PantallaEnlaces extends StatefulWidget {
   final int modulo;
@@ -4203,6 +4793,7 @@ class _PantallaEnlacesState extends State<PantallaEnlaces> {
     'S11',
     'S12',
     'Evaluaciones',
+    'S15_Recup',
   ];
   final List<String> _materias = [
     'Cs. Sociales',
@@ -4250,22 +4841,52 @@ class _PantallaEnlacesState extends State<PantallaEnlaces> {
   }
 
   Future<void> guardarUrlCalificaciones() async {
-    await http.post(
-      Uri.parse('$baseUrl/config_curso'),
-      headers: {'Content-Type': 'application/json'},
-      body: json.encode({
-        'numero_modulo': widget.modulo,
-        'orientacion': widget.orientacion,
-        'url_calificaciones': _urlCalifController.text.trim(),
-      }),
-    );
-    if (mounted)
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('URL de calificaciones guardada'),
-          backgroundColor: Colors.green,
-        ),
+    try {
+      final res = await http.post(
+        Uri.parse('$baseUrl/config_curso'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'numero_modulo': widget.modulo,
+          'orientacion': widget.orientacion,
+          'url_calificaciones': _urlCalifController.text.trim(),
+        }),
       );
+
+      if (res.statusCode == 200) {
+        await cargarDatos();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '✅ URL de calificaciones fijada en Mód. ${widget.modulo} (${widget.orientacion})',
+              ),
+              backgroundColor: Colors.green.shade700,
+            ),
+          );
+        }
+      } else {
+        final err =
+            json.decode(res.body)['error'] ??
+            'No se pudo guardar en la base de datos';
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('❌ Error al fijar URL: $err'),
+              backgroundColor: kRojoLogo,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Error de conexión: $e'),
+            backgroundColor: kRojoLogo,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> guardarEnlace() async {
@@ -4364,19 +4985,26 @@ class _PantallaEnlacesState extends State<PantallaEnlaces> {
                     runSpacing: 10,
                     children: [
                       SizedBox(
-                        width: 130,
+                        width: 170,
                         child: DropdownButtonFormField<String>(
                           value: _semanaSeleccionada,
                           isExpanded: true,
                           decoration: const InputDecoration(
-                            labelText: 'Semana',
+                            labelText: 'Semana / Instancia',
                             border: OutlineInputBorder(),
                             isDense: true,
                           ),
                           items: _semanas
                               .map(
-                                (s) =>
-                                    DropdownMenuItem(value: s, child: Text(s)),
+                                (s) => DropdownMenuItem(
+                                  value: s,
+                                  child: Text(
+                                    s == 'S15_Recup'
+                                        ? 'S15 (Recuperatorio)'
+                                        : s,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
                               )
                               .toList(),
                           onChanged: (v) =>
@@ -4440,7 +5068,7 @@ class _PantallaEnlacesState extends State<PantallaEnlaces> {
                           decoration: InputDecoration(
                             labelText: esManual
                                 ? 'Revisión Manual (Sin Link)'
-                                : 'URL Directa de la Actividad',
+                                : 'URL Directa de Actividad / Evaluación',
                             filled: esManual,
                             border: const OutlineInputBorder(),
                             isDense: true,
@@ -4473,15 +5101,24 @@ class _PantallaEnlacesState extends State<PantallaEnlaces> {
                       final enlace = enlacesGuardados[index];
                       bool esRevManual =
                           enlace['url_actividad'] == 'Revisión_Manual';
+                      bool esEval =
+                          enlace['semana'] == 'Evaluaciones' ||
+                          enlace['semana'] == 'S15_Recup';
                       return Card(
                         child: ListTile(
                           dense: true,
                           leading: Icon(
-                            esRevManual ? Icons.forum : Icons.check_circle,
-                            color: esRevManual ? Colors.orange : Colors.green,
+                            esRevManual
+                                ? Icons.forum
+                                : (esEval
+                                      ? Icons.fact_check
+                                      : Icons.check_circle),
+                            color: esRevManual
+                                ? Colors.orange
+                                : (esEval ? Colors.indigo : Colors.green),
                           ),
                           title: Text(
-                            '${enlace['semana']} - ${enlace['materia']}',
+                            '${enlace['semana'] == 'S15_Recup' ? 'Semana 15 (Recuperatorio)' : enlace['semana']} - ${enlace['materia']}',
                             style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
                           subtitle: Text(
